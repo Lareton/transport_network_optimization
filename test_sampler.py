@@ -2,6 +2,7 @@ import torch
 import numpy as np
 import copy
 
+
 class TestProblem:
     CONST = 0.5
 
@@ -17,13 +18,12 @@ class TestProblem:
         self.b_vector = torch.Tensor(np.random.random(self.m))
         self.c_matrix = torch.Tensor(np.random.random((self.m, self.x_dim)))
         b = torch.Tensor(np.random.normal(size=(self.x_dim + self.y_dim, self.x_dim + self.y_dim)))
-        self.a_matrix = b * torch.transpose(b, 0, 1)
+        self.a_matrix = b @ torch.transpose(b, 0, 1)
 
         self.x.retain_grad()
         self.y.retain_grad()
 
     def calc(self):
-
         x_y = torch.concatenate([self.x, self.y], dim=0)
 
         summand_1 = self.a_matrix @ x_y @ x_y * self.CONST
@@ -37,6 +37,5 @@ class TestProblem:
 
         self.x.grad.zero_()
         self.y.grad.zero_()
-
 
         return result, x_grad, y_grad
