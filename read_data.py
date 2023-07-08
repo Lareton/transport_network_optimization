@@ -32,6 +32,33 @@ def get_network_df(net_fname: str) -> pd.DataFrame:
     
     return net_df
 
+def get_full_df(net_fname: str) -> pd.DataFrame:
+    metadata = ''
+    with open(net_fname, 'r') as fp:
+        for index, line in enumerate(fp):
+            if re.search(r'^~', line) is not None:
+                skip_lines = index + 1
+                headlist = re.findall(r'[\w]+', line)
+                break
+            else:
+                metadata += line
+                
+    
+    net_df = pd.read_csv(net_fname, skiprows=8, sep='\t')
+    
+    trimmed = [s.strip().lower() for s in net_df.columns]
+    net_df.columns = trimmed
+    
+    # And drop the silly first and last columns
+    net_df.drop(['~', ';'], axis=1, inplace=True)
+    
+    
+    # -1 because indices in the input data start from 1
+    net_df.init_node -= 1
+    net_df.term_node -= 1
+    
+    return net_df
+
 
 def get_corrs(corrs_fname: str) -> np.ndarray:
     with open(corrs_fname, 'r') as myfile:
