@@ -14,20 +14,20 @@ class TestProblem:
 
         # self.x = torch.tensor(np.random.random((self.x_dim)), requires_grad=True).float()
         # self.y = torch.tensor(np.random.random((self.y_dim)), requires_grad=True).float()
-        self.b = torch.Tensor(np.random.normal(size=(self.x_dim + self.y_dim, self.x_dim + self.y_dim)))
         self.b_vector = torch.Tensor(np.random.random(self.m))
         self.c_matrix = torch.Tensor(np.random.random((self.m, self.x_dim)))
+
         b = torch.Tensor(np.random.normal(size=(self.x_dim + self.y_dim, self.x_dim + self.y_dim)))
         self.a_matrix = b @ torch.transpose(b, 0, 1)
 
 
-
     def calc(self,x, y):
-        x = copy.deepcopy(x)
-        y = copy.deepcopy(y)
+        x = torch.tensor(x, requires_grad=True)
+        y = torch.tensor(y, requires_grad=True)
 
         x.retain_grad()
         y.retain_grad()
+
         x_y = torch.concatenate([x, y], dim=0)
 
         summand_1 = self.a_matrix @ x_y @ x_y * self.CONST
