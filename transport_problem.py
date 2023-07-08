@@ -4,10 +4,6 @@ import numpy as np
 class TransportProblem:
 
     def __init__(self, T, lambda_, mu, l, w, t, sigma_star, gamma=0.01):
-        """
-        :param T: Tij
-        :param lambda_: Lambda
-        """
         self.T = T
         self.gamma = gamma
         self.lambda_ = lambda_
