@@ -43,3 +43,50 @@ class TestProblem:
         y.grad.zero_()
 
         return result, x_grad, y_grad
+
+
+def get_matrix(m, d, lams):
+    """Returns m x d matrix with given min(m, d) singular values"""
+    assert len(lams) == min(m, d)
+    transpose = True
+    if m > d:
+        m, d = d, m
+        transpose = False
+
+    U = np.random.rand(d, d)
+    Qd, _ = np.linalg.qr(U)
+    K = Qd[:d, :m]
+    K = K @ np.diag(np.sqrt(lams))
+
+    U = np.random.rand(m, m)
+    Qm, _ = np.linalg.qr(U)
+
+    A = K @ Qm
+    if transpose:
+        A = A.T
+
+    return A
+
+
+class TestProblem2:
+    def __init__(self):
+        na, La = 1000, 100
+        A = get_matrix(na, na, np.linspace(0, La, na))
+        self.A = A.T @ A
+        self.a = np.random.random(na)
+
+        nb, Lb = 1000, 20
+        B = get_matrix(nb, nb, np.linspace(0, Lb, nb))
+        self.B = B.T @ B
+        self.b = np.random.random(nb)
+
+    def calc(self, x, y):
+        res =  0.5 * np.transpose(x) @ self.A @ x
+        res += np.transpose(self.a) @ x
+        res += 0.5 * np.transpose(y) @ self.B @ y
+        res += np.transpose(self.b) @ y
+
+        grad_x = self.A @ x + self.a
+        grad_y = self.B @ y + self.b
+
+        return res, grad_x, grad_y
