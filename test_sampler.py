@@ -16,7 +16,9 @@ class TestProblem:
         self.gamma = gamma
 
         self.b_vector_np = np.random.random(self.m)
-        self.c_matrix_np = np.random.random((self.m, self.x_dim))
+        #self.c_matrix_np = np.random.random((self.m, self.x_dim))
+
+        self.c_matrix_np = get_matrix(self.m, self.x_dim, np.linspace(1, self.La, max(self.m, self.x_dim)))
 
         self.b_vector = torch.FloatTensor(self.b_vector_np)
         self.c_matrix = torch.FloatTensor(self.c_matrix_np)
@@ -25,6 +27,17 @@ class TestProblem:
         self.a_matrix_ = get_matrix(self.x_dim + self.y_dim, self.x_dim + self.y_dim,
                                                      np.linspace(1e-2, self.La, self.x_dim + self.y_dim)) # b @ torch.transpose(b, 0, 1)
         self.a_matrix = torch.FloatTensor(self.a_matrix_ @ self.a_matrix_.T)
+
+    def f1(self, x1, x2):
+        x_y = torch.cat([torch.tensor(xi).float() for xi in [x1, x2]], dim=0)
+        return (x_y.t() @ self.a_matrix @ x_y * self.CONST).detach().numpy()
+        
+
+    def f2(self, x1):
+        # x_y = torch.cat([x1, x2], dim=0)
+        #x_y = torch.cat([torch.tensor(xi) for xi in [x1, x2]], dim=0)
+        return self.gamma * torch.logsumexp((self.c_matrix @ x1 - self.b_vector) / self.gamma, dim=0)
+
 
     def calc(self,x, y):
         x = torch.tensor(x, requires_grad=True).float()
