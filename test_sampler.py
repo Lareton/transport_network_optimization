@@ -28,7 +28,7 @@ class TestProblem:
         x.retain_grad()
         y.retain_grad()
 
-        x_y = torch.concatenate([x, y], dim=0)
+        x_y = torch.cat([x, y], dim=0)
 
         summand_1 = self.a_matrix @ x_y @ x_y * self.CONST
         summand_2 = self.gamma * torch.logsumexp((self.c_matrix @ x - self.b_vector) / self.gamma, dim=0)
@@ -69,24 +69,24 @@ def get_matrix(m, d, lams):
 
 
 class TestProblem2:
-    def __init__(self):
-        na, La = 1000, 100
-        A = get_matrix(na, na, np.linspace(0, La, na))
+    def __init__(self, na: int = 100, La: float = 1000, nb: int = 100, Lb: float = 20):
+        self.na, self.La = na, La 
+        A = get_matrix(self.na, self.na, np.linspace(1e-2, self.La, self.na))
         self.A = A.T @ A
-        self.a = np.random.random(na)
+        self.a = np.random.random(self.na)
 
-        nb, Lb = 1000, 20
-        B = get_matrix(nb, nb, np.linspace(0, Lb, nb))
+        self.nb, self.Lb = nb, Lb 
+        B = get_matrix(self.nb, self.nb, np.linspace(1e-2, self.Lb, self.nb))
         self.B = B.T @ B
-        self.b = np.random.random(nb)
+        self.b = np.random.random(self.nb)
 
-    def calc(self, x, y):
-        res =  0.5 * np.transpose(x) @ self.A @ x
-        res += np.transpose(self.a) @ x
-        res += 0.5 * np.transpose(y) @ self.B @ y
-        res += np.transpose(self.b) @ y
+    def calc(self, x1, x2):
+        res =  0.5 * np.transpose(x1) @ self.A @ x1
+        res += np.transpose(self.a) @ x1
+        res += 0.5 * np.transpose(x2) @ self.B @ x2
+        res += np.transpose(self.b) @ x2
 
-        grad_x = self.A @ x + self.a
-        grad_y = self.B @ y + self.b
+        grad_x1 = self.A @ x1 + self.a
+        grad_x2 = self.B @ x2 + self.b
 
-        return res, grad_x, grad_y
+        return res, grad_x1, grad_x2
