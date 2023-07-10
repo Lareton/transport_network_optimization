@@ -13,15 +13,13 @@ from numba.core import types
 @dataclass
 class Params:
     gamma: float
-    l: np.array
-    w: np.array
     mu_pow: float
     rho: float
 
 
 class DualOracle:
 
-    def __init__(self, graph, net_df, corrs, la, mu, params):
+    def __init__(self, graph, net_df, l, w, la, mu, params):
         self.params = params
         self.graph = graph
         self.net_df = net_df
@@ -36,6 +34,9 @@ class DualOracle:
         self.edges_num = len(graph.ep.capacity.a)
         self.nodes_cnt = self.zones_num
         self.edge_cnt = self.edges_num
+
+        self.l = l
+        self.w = w
 
         self.f_bar = np.array(net_df['capacity'])
         self.t_bar = np.array(net_df['free_flow_time'])
