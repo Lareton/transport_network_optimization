@@ -80,12 +80,16 @@ class DualOracle:
         return np.sum(np.exp(-T + self.la[..., None] + self.mu[None, ...]), axis=0) / np.sum(
             np.exp(-T + self.la[..., None] + self.mu[None, ...])) - self.params.w
 
-    def get_T_and_grad_t(self, g, sources, targets):
-        """
-        Считает градиент F по t = суммарные потоки по ребра при прохождениии из всех истоков во все стоки
-        """
 
+    def get_grad_t(self, source, targets, d, pred_map):
         flows_on_shortest = np.zeros(self.edges_num)
+        self.sum_flows_from_tree(flows_on_shortest, source, targets, np.array(pred_map.a), d,
+                                     self.edge_to_ind)
+        return flows_on_shortest
+        
+        
+
+    def get_T_and_predmap(self, g, sources, targets):
         T = np.zeros((len(sources), len(targets)))
 
         for source in sources:
@@ -95,10 +99,7 @@ class DualOracle:
             for j in range(len(short_distances)):
                 T[source, j] = short_distances[j]
 
-            self.sum_flows_from_tree(flows_on_shortest, source, targets, np.array(pred_map.a), self.corrs,
-                                     self.edge_to_ind)
-
-        return T, flows_on_shortest
+        return T, pred_map
 
     def sigma_star(self, t, t_bar, mu_pow, rho):
         return self.f_bar * ((t - t_bar) / (t_bar * rho)) ** mu_pow * (t - t_bar) / (1 + mu_pow)
