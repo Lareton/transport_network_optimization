@@ -62,7 +62,7 @@ class DualOracle:
                 None, ...]) / self.params.gamma) - self.params.l @ self.la - self.params.w @ self.mu + np.sum(
             self.sigma_star(self.t, self.t_bar, self.params.mu_pow, self.params.rho))
 
-    def d(self, T):
+    def get_d(self, T):
         return np.exp((-T + self.la + self.mu) / self.params.gamma) / np.sum(
             np.exp((-T + self.la + self.mu) / self.params.gamma))
 
