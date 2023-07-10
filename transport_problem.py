@@ -23,7 +23,6 @@ class DualOracle:
         self.params = params
         self.graph = graph
         self.net_df = net_df
-        self.corrs = corrs
         edges_arr = graph.get_edges()
         self.edge_to_ind = numba.typed.Dict.empty(key_type=types.UniTuple(types.int64, 2),
                                                   value_type=numba.core.types.int64)
