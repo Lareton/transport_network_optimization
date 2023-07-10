@@ -83,7 +83,9 @@ class DualOracle:
 
     def get_grad_t(self, sources, targets, d, pred_map):
         flows_on_shortest = np.zeros(self.edges_num)
-        self.sum_flows_from_tree(flows_on_shortest, sources, targets, np.array(pred_map.a), d,
+        for ind, source in enumerate(sources):
+             pred_map = pred_maps[ind]
+             self.sum_flows_from_tree(flows_on_shortest, sources, targets, np.array(pred_map.a), d,
                                      self.edge_to_ind)
         return flows_on_shortest
         
@@ -91,15 +93,18 @@ class DualOracle:
 
     def get_T_and_predmap(self, g, sources, targets):
         T = np.zeros((len(sources), len(targets)))
-
+        pred_maps = []
         for source in sources:
             short_distances, pred_map = shortest_distance(g, source=source, target=targets, weights=g.ep.fft,
                                                           pred_map=True)
 
+            pred_maps.append(pred_map)
+
             for j in range(len(short_distances)):
                 T[source, j] = short_distances[j]
+            
 
-        return T, pred_map
+        return T, pred_maps
 
     def sigma_star(self, t, t_bar, mu_pow, rho):
         return self.f_bar * ((t - t_bar) / (t_bar * rho)) ** mu_pow * (t - t_bar) / (1 + mu_pow)
