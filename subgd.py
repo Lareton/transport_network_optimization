@@ -7,138 +7,60 @@ import typing
 import numba
 from numba.core import types
 
+from transport_problem import OptimParams, DualOracle, HyperParams
 
-def edge_dict_to_arr(d: dict, edge_to_ind: dict) -> np.ndarray:
-    arr = np.zeros(len(d))
-    for edge, value in d.items():
-        arr[edge_to_ind[edge]] = value
-    return arr
+T_LEN = 76
+LA_LEN = 25
+MU_LEN = 25
 
-
-@numba.njit
-def sum_flows_from_tree(source: int, targets: np.ndarray, pred_map_arr: np.ndarray, d_ij: np.ndarray, 
-                        edge_to_ind: numba.typed.Dict) -> np.ndarray:
-    num_edges = len(edge_to_ind) 
-    flows_je = np.zeros((targets.size, num_edges))
-    for v in targets:
-        corr = d_ij[source, v]
-        while v != source:
-            v_pred = pred_map_arr[v]
-            flows_je[v, edge_to_ind[(v_pred, v)]] += corr 
-            v = v_pred
-    return flows_je
+graph = None # TODO создавать граф
+oracle = None # TODO - создать оракла
+sources, targets = None, None    # определять sources и targets
+oracle_stacker = OracleStacker(oracle, graph, sources, targets)
 
 
-def get_graphtool_graph(nx_graph: nx.Graph) -> gt.Graph:
-    """Creates `gt_graph: graph_tool.Graph` from `nx_graph: nx.Graph`.
-    Nodes in `gt_graph` are labeled by their indices in `nx_graph.edges()` instead of their labels
-    (possibly of `str` type) in `nx_graph`"""
-    nx_edges = nx_graph.edges()
-    nx_edge_to_ind = dict(zip(nx_edges, list(range(len(nx_graph.edges())))))
+class OracleStacker:
+    def __init__(self, oracle: DualOracle, graph, sources, targets):
+        self.oracle = oracle
+        self.graph = graph
+        self.sources = sources
+        self.targets = targets
 
-    nx_bandwidths = edge_dict_to_arr(nx.get_edge_attributes(nx_graph, "bandwidth"), nx_edge_to_ind)
-    nx_costs = edge_dict_to_arr(nx.get_edge_attributes(nx_graph, "cost"), nx_edge_to_ind)
+        self.t = oracle.t_bar.copy()
+        self.la = np.zeros(oracle.zones_num)
+        self.mu = np.zeros(oracle.zones_num)
+        self.optim_params = OptimParams(self.t, self.la, self.mu)
 
-    nx_nodes = list(nx_graph.nodes())
-    edge_list = []
-    for i, e in enumerate(nx_graph.edges()):
-        edge_list.append((*[nx_nodes.index(v) for v in e],  nx_bandwidths[i], nx_costs[i]))
+    def __call__(self, vars_block, *args, **kwargs):
+        """
+        :param vars_block: все оптимизируемые переменные stack[t, la, mu]
+        :return:
+        dual_value -  значение двойстенной функции для t, la, mu
+        full_grad - градиент, stack[t_grad, la_grad, mu_grad]
+        flows_averaged -  потоки при данных t (f)
+        """
+        assert len(vars_block) == T_LEN + LA_LEN + MU_LEN
+        t = vars_block[:T_LEN]
+        la = vars_block[T_LEN:T_LEN + LA_LEN]
+        t = vars_block[T_LEN + LA_LEN:]
 
-    gt_graph = gt.Graph(edge_list, eprops=[("bandwidths", "double"), ("costs", "double")])
+        T, pred_maps = self.oracle.get_T_and_predmaps(self.graph, self.optim_params, self.sources, self.targets)
+        d = self.oracle.get_d(self.optim_params, T)
+        grad_t = self.oracle.get_flows_on_shortest(self.sources, self.targets, d, pred_maps)
+        grad_la = self.oracle.grad_dF_dla(self.optim_params, T)
+        grad_mu = self.oracle.grad_dF_dmu(self.optim_params, T)
 
-    return gt_graph
+        full_grad = np.stack([grad_t, grad_la, grad_mu], axis=0)
+        dual_value = self.oracle.calc_F(self.optim_params, T)
 
+        flows = self.oracle.get_flows_on_shortest(self.sources, self.targets, d, pred_maps)
 
-class CapacityDualModel:
-    def __init__(self, nx_graph: nx.Graph, d_ij: np.ndarray):
-        self.graph = get_graphtool_graph(nx_graph)
-        self.d_ij = d_ij
+        return dual_value, full_grad, flows
 
-    def primal(self, flows_e: np.ndarray) -> float:
-        return self.graph.ep.costs.a @ flows_e
-    
-    def dual(self, dual_costs: np.ndarray, flows_subgd_e: np.ndarray) -> float:
-        return (self.graph.ep.costs.a + dual_costs) @ flows_subgd_e - dual_costs @ self.graph.ep.bandwidths.a
-    
-    def constraints_violation_l1(self, flows_e: np.ndarray) -> float:
-        return np.maximum(0, flows_e - self.graph.ep.bandwidths.a).sum()
-
-    def dual_subgradient(self, flows_subgd_e: np.ndarray) -> np.ndarray:
-        return flows_subgd_e - self.graph.ep.bandwidths.a
-
-    def flows_on_shortest(self, dual_costs: np.ndarray) -> np.ndarray:
-        """Returns flows on edges for each ij-pair
-        (obtained from flows on shortest paths w.r.t costs induced by dual_costs)"""
-        num_nodes, num_edges = self.graph.num_vertices(), self.graph.num_edges()
-
-        weights = self.graph.new_edge_property("double")
-        weights.a = self.graph.ep.costs.a + dual_costs
-
-        edges_arr = self.graph.get_edges()
-        edge_to_ind = numba.typed.Dict.empty(key_type=types.UniTuple(types.int64, 2), value_type=numba.core.types.int64)
-        for i, edge in enumerate(edges_arr):
-            edge_to_ind[tuple(edge)] = i
-    
-        flows_on_shortest_ije = np.zeros((num_nodes, num_nodes, num_edges))
-        targets = np.arange(num_nodes)
-        for source in range(num_nodes):
-            _, pred_map = shortest_distance(self.graph, source=source, target=targets, weights=weights, pred_map=True)
-            flows_on_shortest_ije[source, :, :] = sum_flows_from_tree(
-                source=source,
-                targets=targets,
-                pred_map_arr=np.array(pred_map.a),
-                d_ij=self.d_ij,
-                edge_to_ind=edge_to_ind,
-            )
-
-        return flows_on_shortest_ije
-
-
-def subgd_mincost_mcf(
-    model: CapacityDualModel,
-    R: float,
-    eps_abs: float,
-    eps_cons_abs: float,
-    max_iter: int = 10000,
-) -> tuple:
-    num_nodes, num_edges = model.graph.num_vertices(), model.graph.num_edges()
-    flows_averaged_ije = np.zeros((num_nodes, num_nodes, num_edges))
-
-    dual_costs = np.zeros(num_edges)
-
-    dgap_log = []
-    cons_log = []
-
-    S = 0  # sum of stepsizes
-
-    for k in range(max_iter):
-        # inlined subgradient calculation with paths set saving
-        flows_subgd_ije = model.flows_on_shortest(dual_costs)
-        flows_subgd_e = flows_subgd_ije.sum(axis=(0, 1))
-        subgd = -model.dual_subgradient(flows_subgd_e)  # grad of varphi = -dual
-
-        h = R / (k + 1) ** 0.5 / np.linalg.norm(subgd)
-
-        dual_val = model.dual(dual_costs, flows_subgd_e)
-
-        flows_averaged_ije = (S * flows_averaged_ije + h * flows_subgd_ije) / (S + h)
-        S += h
-
-        flows_averaged_e = flows_averaged_ije.sum(axis=(0, 1))
-
-        dgap_log.append(model.primal(flows_averaged_e) - dual_val)
-        cons_log.append(model.constraints_violation_l1(flows_averaged_e))
-
-        if dgap_log[-1] <= eps_abs and cons_log[-1] <= eps_cons_abs:
-            break
-
-        dual_costs = np.maximum(0, dual_costs - h * subgd)
-
-    return dual_costs, flows_averaged_ije, dgap_log, cons_log
 
 
 def ustm_mincost_mcf(
-    model: CapacityDualModel,
+    model,
     eps_abs: float,
     eps_cons_abs: float,
     max_iter: int = 10000,
@@ -153,20 +75,8 @@ def ustm_mincost_mcf(
     y_start = u_prev = t_prev = np.copy(t_start)
     assert y_start is u_prev  # acceptable at first initialization
     grad_sum_prev = np.zeros(len(t_start))
-    
-    def func_grad_flows(dual_costs: np.ndarray):
-        """func = varphi = -dual"""
-        flows_subgd_ije = model.flows_on_shortest(dual_costs)
-        flows_subgd_e = flows_subgd_ije.sum(axis=(0,    1))
-        dual_grad = model.dual_subgradient(flows_subgd_e)
-        return -model.dual(dual_costs, flows_subgd_e), -dual_grad, flows_subgd_ije
 
-        # model.dual -  двойственная функция
-        # dual_grad - градиент (по лямда, мю, по т) F
-        # flows_subgd_ije - потоки при данных t
-        # допом потом возвращать корреспонденции
-
-    _, grad_y, flows_averaged_ije = func_grad_flows(y_start)
+    _, grad_y, flows_averaged = oracle_stacker(y_start)
     L_value = np.linalg.norm(grad_y) / 10
     
     A = u = t = y = None
@@ -180,13 +90,13 @@ def ustm_mincost_mcf(
             A = A_prev + alpha
     
             y = (alpha * u_prev + A_prev * t_prev) / A
-            func_y, grad_y, flows_y = func_grad_flows(y)
+            func_y, grad_y, flows_y = oracle_stacker(y)
             grad_sum = grad_sum_prev + alpha * grad_y
             
             u = np.maximum(0, y_start - grad_sum)
             
             t = (alpha * u + A_prev * t_prev) / A
-            func_t, _, _ = func_grad_flows(t)
+            func_t, _, _ = oracle_stacker(t)
             
             lvalue = func_t
             rvalue = (func_y + np.dot(grad_y, t - y) + 0.5 * L_value * np.sum((t - y) ** 2) + 
@@ -207,15 +117,14 @@ def ustm_mincost_mcf(
         u_prev = u
         grad_sum_prev = grad_sum
         
-        gamma = alpha / A
-        flows_averaged_ije = flows_averaged_ije * (1 - gamma) + flows_y * gamma
-        flows_averaged_e = flows_averaged_ije.sum(axis=(0, 1))
+        teta = alpha / A
+        flows_averaged = flows_averaged * (1 - teta) + flows_y * teta
+        flows_averaged_e = flows_averaged.sum(axis=(0, 1))
 
-        dgap_log.append(model.primal(flows_averaged_e) + func_t)
-        cons_log.append(model.constraints_violation_l1(flows_averaged_e))
+        # dgap_log.append(model.primal(flows_averaged_e) + func_t)
+        # cons_log.append(model.constraints_violation_l1(flows_averaged_e))
         A_log.append(A)
-    
-        if stop_by_crit and dgap_log[-1] <= eps_abs and cons_log[-1] <= eps_cons_abs:
-            break
+        # if stop_by_crit and dgap_log[-1] <= eps_abs and cons_log[-1] <= eps_cons_abs:
+        #     break
 
-    return t, flows_averaged_ije, dgap_log, cons_log, A_log
+    return t, flows_averaged, dgap_log, cons_log, A_log

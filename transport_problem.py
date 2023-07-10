@@ -65,8 +65,8 @@ class DualOracle:
 
     def calc_F(self, optim_params, T):
         return self.params.gamma * scipy.special.logsumexp(
-            (-T + self.la[..., None] + self.mu[
-                None, ...]) / self.params.gamma) - self.params.l @ self.la - self.params.w @ self.mu + np.sum(
+            (-T + optim_params.la[..., None] + optim_params.mu[
+                None, ...]) / self.params.gamma) - self.l @ optim_params.la - self.w @ optim_params.mu + np.sum(
             self.sigma_star(optim_params.t, self.t_bar, self.params.mu_pow, self.params.rho))
 
     def get_d(self, optim_params, T):
@@ -87,7 +87,7 @@ class DualOracle:
         return np.sum(np.exp(-T + optim_params.la[..., None] + optim_params.mu[None, ...]), axis=0) / np.sum(
             np.exp(-T + optim_params.la[..., None] + optim_params.mu[None, ...])) - self.w
 
-    def get_grad_t(self, sources, targets, d, pred_maps):
+    def get_flows_on_shortest(self, sources, targets, d, pred_maps):
         flows_on_shortest = np.zeros(self.edges_num)
         for ind, source in enumerate(sources):
             pred_map = pred_maps[ind]
@@ -95,12 +95,16 @@ class DualOracle:
                                      self.edge_to_ind)
         return flows_on_shortest
 
-    def get_T_and_predmaps(self, g, sources, targets):
+    def get_T_and_predmaps(self, g, optim_params, sources, targets):
         T = np.zeros((len(sources), len(targets)))
         pred_maps = []
 
         for source in sources:
-            short_distances, pred_map = shortest_distance(g, source=source, target=targets, weights=g.ep.fft,
+            # CHECK ME - правильно ли сопоставляются веса ребер (от инициализации)
+            weights = g.ep.fft
+            weights.a = optim_params.t
+
+            short_distances, pred_map = shortest_distance(g, source=source, target=targets, weights=weights,
                                                           pred_map=True)
             pred_maps.append(pred_map)
 
@@ -112,10 +116,3 @@ class DualOracle:
     def sigma_star(self, t, t_bar, mu_pow, rho):
         return self.f_bar * ((t - t_bar) / (t_bar * rho)) ** mu_pow * (t - t_bar) / (1 + mu_pow)
 
-
-def main():
-    params = Params()
-
-
-if __name__ == '__main__':
-    main()
