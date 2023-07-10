@@ -45,9 +45,9 @@ class DualOracle:
         self.mu = np.zeros(zones_num)
 
     @njit
-    def sum_flows_from_tree(self, flows, source, targets, pred_map_arr, corrs, edge_to_ind):
+    def sum_flows_from_tree(self, flows, source, targets, pred_map_arr, d, edge_to_ind):
         for v in targets:
-            corr = corrs[source, v]
+            corr = d[source, v]
             while v != source:
                 v_pred = pred_map_arr[v]
                 flows[edge_to_ind[(v_pred, v)]] += corr
