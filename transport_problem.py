@@ -38,7 +38,7 @@ class Grad:
         return np.exp((-self.params.T + self.params.lambda_ + self.params.mu) / self.params.gamma) / np.sum(
             np.exp((-self.params.T + self.params.lambda_ + self.params.mu) / self.params.gamma))
 
-    def grad_dF_dla(self):
+    def grad_dF_dLambda(self):
         return np.sum(np.exp(-self.params.T + self.params.lambda_[None, ...] + self.params.mu[..., None]),
                       axis=1) / np.sum(
             np.exp(-self.params.T + self.params.lambda_[None, ...] + self.params.mu[..., None])) + self.params.l
