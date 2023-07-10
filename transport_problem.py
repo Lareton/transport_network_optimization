@@ -11,10 +11,17 @@ from numba.core import types
 
 
 @dataclass
-class Params:
+class HyperParams:
     gamma: float
     mu_pow: float
     rho: float
+
+
+@dataclass
+class OptimParams:
+    t: np.ndarray
+    la: np.ndarray
+    mu: np.ndarray
 
 
 class DualOracle:
@@ -41,12 +48,12 @@ class DualOracle:
 
         self.f_bar = np.array(net_df['capacity'])
         self.t_bar = np.array(net_df['free_flow_time'])
-        self.t = self.t_bar.copy() + np.random.rand(self.edge_cnt)
 
-        self.la = np.zeros(self.zones_num)
-        self.mu = np.zeros(self.zones_num)
+    #         self.t = self.t_bar.copy() + np.random.rand(self.edge_cnt)
+    #         self.la = np.zeros(self.zones_num)
+    #         self.mu = snp.zeros(self.zones_num)
 
-    @njit
+    #     @njit
     def sum_flows_from_tree(self, flows, source, targets, pred_map_arr, d, edge_to_ind):
         for v in targets:
             corr = d[source, v]
@@ -56,15 +63,15 @@ class DualOracle:
                 v = v_pred
         return flows
 
-    def calc_F(self, T):
+    def calc_F(self, optim_params, T):
         return self.params.gamma * scipy.special.logsumexp(
             (-T + self.la[..., None] + self.mu[
                 None, ...]) / self.params.gamma) - self.params.l @ self.la - self.params.w @ self.mu + np.sum(
-            self.sigma_star(self.t, self.t_bar, self.params.mu_pow, self.params.rho))
+            self.sigma_star(optim_params.t, self.t_bar, self.params.mu_pow, self.params.rho))
 
-    def get_d(self, T):
-        return np.exp((-T + self.la + self.mu) / self.params.gamma) / np.sum(
-            np.exp((-T + self.la + self.mu) / self.params.gamma))
+    def get_d(self, optim_params, T):
+        return np.exp((-T + optim_params.la + optim_params.mu) / self.params.gamma) / np.sum(
+            np.exp((-T + optim_params.la + optim_params.mu) / self.params.gamma))
 
     def invert_tau(self, t):
         return self.f_bar * ((t - self.t_bar) / (self.params.k * self.t_bar)) ** self.params.mu_pow
@@ -72,37 +79,33 @@ class DualOracle:
     def grad_dF_dt(self, grad_t):
         return grad_t + self.invert_tau(self.t)
 
-    def grad_dF_dla(self, T):
-        return np.sum(np.exp(-T + self.la[..., None] + self.mu[None, ...]), axis=1) / np.sum(
-            np.exp(-T + self.la[..., None] + self.mu[None, ...])) - self.params.l
+    def grad_dF_dla(self, optim_params, T):
+        return np.sum(np.exp(-T + optim_params.la[..., None] + optim_params.mu[None, ...]), axis=1) / np.sum(
+            np.exp(-T + optim_params.la[..., None] + optim_params.mu[None, ...])) - self.l
 
-    def grad_dF_dmu(self, T):
-        return np.sum(np.exp(-T + self.la[..., None] + self.mu[None, ...]), axis=0) / np.sum(
-            np.exp(-T + self.la[..., None] + self.mu[None, ...])) - self.params.w
+    def grad_dF_dmu(self, optim_params, T):
+        return np.sum(np.exp(-T + optim_params.la[..., None] + optim_params.mu[None, ...]), axis=0) / np.sum(
+            np.exp(-T + optim_params.la[..., None] + optim_params.mu[None, ...])) - self.w
 
-
-    def get_grad_t(self, sources, targets, d, pred_map):
+    def get_grad_t(self, sources, targets, d, pred_maps):
         flows_on_shortest = np.zeros(self.edges_num)
         for ind, source in enumerate(sources):
-             pred_map = pred_maps[ind]
-             self.sum_flows_from_tree(flows_on_shortest, sources, targets, np.array(pred_map.a), d,
+            pred_map = pred_maps[ind]
+            self.sum_flows_from_tree(flows_on_shortest, source, targets, np.array(pred_map.a), d,
                                      self.edge_to_ind)
         return flows_on_shortest
-        
-        
 
-    def get_T_and_predmap(self, g, sources, targets):
+    def get_T_and_predmaps(self, g, sources, targets):
         T = np.zeros((len(sources), len(targets)))
         pred_maps = []
+
         for source in sources:
             short_distances, pred_map = shortest_distance(g, source=source, target=targets, weights=g.ep.fft,
                                                           pred_map=True)
-
             pred_maps.append(pred_map)
 
             for j in range(len(short_distances)):
                 T[source, j] = short_distances[j]
-            
 
         return T, pred_maps
 
