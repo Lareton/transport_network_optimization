@@ -41,8 +41,8 @@ class DualOracle:
         self.t_bar = np.array(net_df['free_flow_time'])
         self.t = self.t_bar.copy() + np.random.rand(self.edge_cnt)
 
-        self.la = la
-        self.mu = mu
+        self.la = np.zeros(zones_num)
+        self.mu = np.zeros(zones_num)
 
     @njit
     def sum_flows_from_tree(self, flows, source, targets, pred_map_arr, corrs, edge_to_ind):
