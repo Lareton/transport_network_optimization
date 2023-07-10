@@ -15,9 +15,7 @@ class Params:
     gamma: float
     l: np.array
     w: np.array
-    f_flow: float
     mu_pow: float
-    t_flow: float
     rho: float
     mu_pow: float
 
