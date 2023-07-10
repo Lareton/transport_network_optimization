@@ -37,6 +37,8 @@ class DualOracle:
         self.l = l
         self.w = w
 
+        assert len(l) == len(w)
+
         self.f_bar = np.array(net_df['capacity'])
         self.t_bar = np.array(net_df['free_flow_time'])
         self.t = self.t_bar.copy() + np.random.rand(self.edge_cnt)
