@@ -17,7 +17,6 @@ class Params:
     w: np.array
     mu_pow: float
     rho: float
-    mu_pow: float
 
 
 class DualOracle:
