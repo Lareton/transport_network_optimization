@@ -19,7 +19,7 @@ class Params:
 
 class DualOracle:
 
-    def __init__(self, graph, net_df, l, w, la, mu, params):
+    def __init__(self, graph, net_df, l, w, params):
         self.params = params
         self.graph = graph
         self.net_df = net_df
