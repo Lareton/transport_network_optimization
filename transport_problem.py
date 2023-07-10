@@ -29,7 +29,7 @@ class DualOracle:
         for i, edge in enumerate(edges_arr):
             self.edge_to_ind[tuple(edge)] = i
 
-        self.zones_num = corrs.shape[0]
+        self.zones_num = len(l)
         self.edges_num = len(graph.ep.capacity.a)
         self.nodes_cnt = self.zones_num
         self.edge_cnt = self.edges_num
