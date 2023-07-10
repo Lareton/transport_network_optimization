@@ -81,9 +81,9 @@ class DualOracle:
             np.exp(-T + self.la[..., None] + self.mu[None, ...])) - self.params.w
 
 
-    def get_grad_t(self, source, targets, d, pred_map):
+    def get_grad_t(self, sources, targets, d, pred_map):
         flows_on_shortest = np.zeros(self.edges_num)
-        self.sum_flows_from_tree(flows_on_shortest, source, targets, np.array(pred_map.a), d,
+        self.sum_flows_from_tree(flows_on_shortest, sources, targets, np.array(pred_map.a), d,
                                      self.edge_to_ind)
         return flows_on_shortest
         
