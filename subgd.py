@@ -44,13 +44,19 @@ class OracleStacker:
         full_grad - градиент, stack[t_grad, la_grad, mu_grad]
         flows_averaged -  потоки при данных t (f)
         """
+        print("vars block grad: ", np.linalg.norm(vars_block))
         assert len(vars_block) == self.T_LEN + self.LA_LEN + self.MU_LEN
+
         self.optim_params.t = vars_block[:self.T_LEN]
+
+        print("t in optim params grad: ", np.linalg.norm(self.optim_params.t), np.linalg.norm(vars_block[:self.T_LEN]))
+
         self.optim_params.la = vars_block[self.T_LEN:self.T_LEN + self.LA_LEN]
         self.optim_params.mu = vars_block[self.T_LEN + self.LA_LEN:]
 
         T, pred_maps = self.oracle.get_T_and_predmaps(self.graph, self.optim_params, self.sources, self.targets)
-        # print("pred_maps: ", [i.a for i in pred_maps])
+        print("norm T: ", np.linalg.norm(T))
+
         self.d = self.oracle.get_d(self.optim_params, T)
         flows_on_shortest = self.oracle.get_flows_on_shortest(self.sources, self.targets, self.d, pred_maps)
 
@@ -68,6 +74,8 @@ class OracleStacker:
     def get_prime_value(self):
         return self.oracle.prime(self.flows, self.d)
 
+    def get_init_vars_block(self):
+        return np.hstack([self.oracle.t_bar.copy(), np.zeros(self.LA_LEN), np.zeros(self.MU_LEN)])
 
 # TODO: убрать unused переменные
 def ustm_mincost_mcf(

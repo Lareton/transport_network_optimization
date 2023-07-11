@@ -59,13 +59,14 @@ class DualOracle:
             corr = d[source, v]
             while v != source:
                 v_pred = pred_map_arr[v]
-                #print(v, source, pred_map_arr)
+                # print(v, source, pred_map_arr)
                 flows[self.edge_to_ind[(v_pred, v)]] += corr
                 v = v_pred
         return flows
 
     def calc_F(self, optim_params, T):
-        logsum_term = self.params.gamma * scipy.special.logsumexp((-T + optim_params.la[..., None] + optim_params.mu[None, ...]) / self.params.gamma)
+        logsum_term = self.params.gamma * scipy.special.logsumexp(
+            (-T + optim_params.la[..., None] + optim_params.mu[None, ...]) / self.params.gamma)
         return logsum_term - self.l @ optim_params.la - self.w @ optim_params.mu + np.sum(self.sigma_star(optim_params))
 
     def get_d(self, optim_params, T):
@@ -75,7 +76,8 @@ class DualOracle:
         return exps / exps.sum()
 
     def invert_tau(self, optim_params):
-        return self.f_bar * ((optim_params.t ** self.params.mu_pow - self.t_bar ** self.params.mu_pow) / (self.params.rho * self.t_bar ** self.params.mu_pow))
+        return self.f_bar * ((optim_params.t ** self.params.mu_pow - self.t_bar ** self.params.mu_pow) / (
+                    self.params.rho * self.t_bar ** self.params.mu_pow))
 
     def grad_dF_dt(self, optim_params, flows_on_shortest):
         return -flows_on_shortest + self.invert_tau(optim_params)
@@ -108,7 +110,7 @@ class DualOracle:
 
             short_distances, pred_map = shortest_distance(g, source=source, target=targets, weights=weights,
                                                           pred_map=True)
-            #print("source: ", source, "targets: ", targets, "pred_map: ", pred_map.a)
+            #             print("short_distances sum: ", short_distances.sum())
             pred_maps.append(pred_map)
 
             for j in range(len(short_distances)):
