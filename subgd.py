@@ -92,6 +92,8 @@ def ustm_mincost_mcf(
     A_log = []
     history_dual_values = []
     history_prime_values = []
+    d_history = []
+    flows_history = []
 
     A_prev = 0.0
     print(1)
@@ -107,7 +109,7 @@ def ustm_mincost_mcf(
     grad_sum_prev = np.zeros(len(t_start))
 
     _, grad_y, flows_averaged = oracle_stacker(y_start)
-    d_avaraged = oracle_stacker.d
+    d_avaraged = oracle_stacker.d.copy()
 
     L_value = np.linalg.norm(grad_y) / 10
 
@@ -156,8 +158,11 @@ def ustm_mincost_mcf(
 
             assert L_value < np.inf
 
-        history_dual_values.append(func_y)
-        history_prime_values.append(oracle_stacker.get_prime_value())
+        # history_dual_values.append(func_y)
+        #         history_prime_values.append(oracle_stacker.get_prime_value())
+
+        history_dual_values.append(func_t)
+        history_prime_values.append(oracle_stacker.oracle.prime(flows_averaged, d_avaraged))
 
         A_prev = A
         L_value /= 2
@@ -168,9 +173,12 @@ def ustm_mincost_mcf(
 
         teta = alpha / A
         # TODO TODO
+        print("#######################################teta: ", teta)
         flows_averaged = flows_averaged * (1 - teta) + flows_y * teta
         #         flows_averaged_e = flows_averaged.sum(axis=(0, 1))
-        d_avaraged = d_avaraged + (1 - teta) + oracle_stacker.d * teta
+        d_avaraged = d_avaraged * (1 - teta) + oracle_stacker.d * teta
+        d_history.append(oracle_stacker.d)
+        flows_history.append(flows_y)
 
         dgap_log.append(oracle_stacker.oracle.prime(flows_averaged, d_avaraged) + func_t)
         # cons_log.append(model.constraints_violation_l1(flows_averaged_e))
@@ -179,4 +187,5 @@ def ustm_mincost_mcf(
         if stop_by_crit and dgap_log[-1] <= eps_abs and cons_log[-1] <= eps_cons_abs:
             break
 
-    return t, flows_averaged, d_avaraged, dgap_log, cons_log, A_log, history_dual_values, history_prime_values
+    return t, flows_history, flows_averaged, d_history, d_avaraged, history_prime_values, history_dual_values, dgap_log,\
+           cons_log, A_log, history_dual_values, history_prime_values
