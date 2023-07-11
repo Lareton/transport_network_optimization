@@ -78,6 +78,7 @@ class OracleStacker:
     def get_init_vars_block(self):
         return np.hstack([self.oracle.t_bar.copy(), np.zeros(self.LA_LEN), np.zeros(self.MU_LEN)])
 
+
 # TODO: убрать unused переменные
 def ustm_mincost_mcf(
         oracle_stacker: OracleStacker,
@@ -89,6 +90,7 @@ def ustm_mincost_mcf(
     dgap_log = []
     cons_log = []
     A_log = []
+    history_dual_values = []
 
     A_prev = 0.0
     print(1)
@@ -120,6 +122,8 @@ def ustm_mincost_mcf(
 
             y = (alpha * u_prev + A_prev * t_prev) / A
             func_y, grad_y, flows_y = oracle_stacker(y)
+            history_dual_values.append(func_y)
+
             grad_sum = grad_sum_prev + alpha * grad_y
 
             u = y_start - grad_sum
@@ -167,4 +171,4 @@ def ustm_mincost_mcf(
         # if stop_by_crit and dgap_log[-1] <= eps_abs and cons_log[-1] <= eps_cons_abs:
         #     break
 
-    return t, flows_averaged, dgap_log, cons_log, A_log
+    return t, flows_averaged, dgap_log, cons_log, A_log, history_dual_values
