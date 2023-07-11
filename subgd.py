@@ -45,17 +45,18 @@ class OracleStacker:
         flows_averaged -  потоки при данных t (f)
         """
         assert len(vars_block) == self.T_LEN + self.LA_LEN + self.MU_LEN
-        t = vars_block[:self.T_LEN]
-        la = vars_block[self.T_LEN:self.T_LEN + self.LA_LEN]
-        t = vars_block[self.T_LEN + self.LA_LEN:]
+        self.optim_params.t = vars_block[:self.T_LEN]
+        self.optim_params.la = vars_block[self.T_LEN:self.T_LEN + self.LA_LEN]
+        self.optim_params.mu = vars_block[self.T_LEN + self.LA_LEN:]
 
         T, pred_maps = self.oracle.get_T_and_predmaps(self.graph, self.optim_params, self.sources, self.targets)
         d = self.oracle.get_d(self.optim_params, T)
-        grad_t = self.oracle.get_flows_on_shortest(self.sources, self.targets, d, pred_maps)
+        flows_on_shortest = self.oracle.get_flows_on_shortest(self.sources, self.targets, d, pred_maps)
+
+        grad_t = self.oracle.grad_dF_dt(self.optim_params, flows_on_shortest)
         grad_la = self.oracle.grad_dF_dla(self.optim_params, T)
         grad_mu = self.oracle.grad_dF_dmu(self.optim_params, T)
 
-        #         print(grad_t.shape, grad_la.shape, grad_mu.shape)
         full_grad = np.hstack([grad_t, grad_la, grad_mu])
         dual_value = self.oracle.calc_F(self.optim_params, T)
 
@@ -106,7 +107,10 @@ def ustm_mincost_mcf(
             func_y, grad_y, flows_y = oracle_stacker(y)
             grad_sum = grad_sum_prev + alpha * grad_y
 
-            u = np.maximum(0, y_start - grad_sum)
+            tmp = np.maximum(oracle_stacker.oracle.t_bar, (y_start - grad_sum)[:oracle_stacker.T_LEN])
+            u = y_start - grad_sum
+            u[:oracle_stacker.T_LEN] = tmp
+            # u = np.maximum(0, y_start - grad_sum)
 
             t = (alpha * u + A_prev * t_prev) / A
             func_t, _, _ = oracle_stacker(t)

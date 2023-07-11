@@ -73,11 +73,11 @@ class DualOracle:
         return np.exp((-T + optim_params.la + optim_params.mu) / self.params.gamma) / np.sum(
             np.exp((-T + optim_params.la + optim_params.mu) / self.params.gamma))
 
-    def invert_tau(self, t):
-        return self.f_bar * ((t - self.t_bar) / (self.params.k * self.t_bar)) ** self.params.mu_pow
+    def invert_tau(self, optim_params):
+        return self.f_bar * ((optim_params.t - self.t_bar) / (self.params.k * self.t_bar)) ** self.params.mu_pow
 
-    def grad_dF_dt(self, grad_t):
-        return grad_t + self.invert_tau(self.t)
+    def grad_dF_dt(self, optim_params, flows_on_shortest):
+        return -flows_on_shortest + self.invert_tau(optim_params)
 
     def grad_dF_dla(self, optim_params, T):
         return np.sum(np.exp(-T + optim_params.la[..., None] + optim_params.mu[None, ...]), axis=1) / np.sum(
