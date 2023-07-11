@@ -59,7 +59,7 @@ class DualOracle:
             corr = d[source, v]
             while v != source:
                 v_pred = pred_map_arr[v]
-                print(v, source, pred_map_arr)
+                #print(v, source, pred_map_arr)
                 flows[self.edge_to_ind[(v_pred, v)]] += corr
                 v = v_pred
         return flows
@@ -71,8 +71,10 @@ class DualOracle:
             self.sigma_star(optim_params))
 
     def get_d(self, optim_params, T):
-        return np.exp((-T + optim_params.la + optim_params.mu) / self.params.gamma) / np.sum(
-            np.exp((-T + optim_params.la + optim_params.mu) / self.params.gamma))
+        exp_arg = (-T + optim_params.la + optim_params.mu) / self.params.gamma
+        exp_arg -= exp_arg.max()
+        exps = np.exp(exp_arg)
+        return exps / exps.sum()
 
     def invert_tau(self, optim_params):
         return self.f_bar * ((optim_params.t ** self.params.mu_pow - self.t_bar ** self.params.mu_pow) / (self.params.rho * self.t_bar ** self.params.mu_pow))
@@ -80,13 +82,11 @@ class DualOracle:
     def grad_dF_dt(self, optim_params, flows_on_shortest):
         return -flows_on_shortest + self.invert_tau(optim_params)
 
-    def grad_dF_dla(self, optim_params, T):
-        return np.sum(np.exp(-T + optim_params.la[..., None] + optim_params.mu[None, ...]), axis=1) / np.sum(
-            np.exp(-T + optim_params.la[..., None] + optim_params.mu[None, ...])) - self.l
+    def grad_dF_dla(self, d):
+        return d.sum(axis=1) - self.l
 
-    def grad_dF_dmu(self, optim_params, T):
-        return np.sum(np.exp(-T + optim_params.la[..., None] + optim_params.mu[None, ...]), axis=0) / np.sum(
-            np.exp(-T + optim_params.la[..., None] + optim_params.mu[None, ...])) - self.w
+    def grad_dF_dmu(self, d):
+        return d.sum(axis=0) - self.w
 
     def get_flows_on_shortest(self, sources, targets, d, pred_maps):
         flows_on_shortest = np.zeros(self.edges_num)
@@ -106,7 +106,7 @@ class DualOracle:
 
             short_distances, pred_map = shortest_distance(g, source=source, target=targets, weights=weights,
                                                           pred_map=True)
-            print("source: ", source, "targets: ", targets, "pred_map: ", pred_map.a)
+            #print("source: ", source, "targets: ", targets, "pred_map: ", pred_map.a)
             pred_maps.append(pred_map)
 
             for j in range(len(short_distances)):
