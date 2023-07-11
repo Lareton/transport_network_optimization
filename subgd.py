@@ -48,8 +48,9 @@ class OracleStacker:
         assert len(vars_block) == self.T_LEN + self.LA_LEN + self.MU_LEN
 
         self.optim_params.t = vars_block[:self.T_LEN]
-
         print("t in optim params grad: ", np.linalg.norm(self.optim_params.t), np.linalg.norm(vars_block[:self.T_LEN]))
+        print("la in optim params grad: ", np.linalg.norm(self.optim_params.la))
+        print("mu in optim params grad: ", np.linalg.norm(self.optim_params.mu))
 
         self.optim_params.la = vars_block[self.T_LEN:self.T_LEN + self.LA_LEN]
         self.optim_params.mu = vars_block[self.T_LEN + self.LA_LEN:]
@@ -92,7 +93,8 @@ def ustm_mincost_mcf(
     A_prev = 0.0
     print(1)
 
-    t_start = np.zeros(oracle_stacker.parameters_vector_size)  # dual costs w
+    # t_start = np.zeros(oracle_stacker.parameters_vector_size)  # dual costs w
+    t_start = oracle_stacker.get_init_vars_block()  # dual costs w
     print(1)
 
     y_start = u_prev = t_prev = np.copy(t_start)
@@ -121,6 +123,7 @@ def ustm_mincost_mcf(
             grad_sum = grad_sum_prev + alpha * grad_y
 
             u = y_start - grad_sum
+            print("count values below t_bar in new t: ", (u[:oracle_stacker.T_LEN] < oracle_stacker.oracle.t_bar).sum())
             u[:oracle_stacker.T_LEN] = np.maximum(oracle_stacker.oracle.t_bar, u[:oracle_stacker.T_LEN])
             # u = np.maximum(0, y_start - grad_sum)
 
