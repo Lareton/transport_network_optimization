@@ -50,6 +50,7 @@ class OracleStacker:
         self.optim_params.mu = vars_block[self.T_LEN + self.LA_LEN:]
 
         T, pred_maps = self.oracle.get_T_and_predmaps(self.graph, self.optim_params, self.sources, self.targets)
+        print("pred_maps: ", [i.a for i in pred_maps])
         d = self.oracle.get_d(self.optim_params, T)
         flows_on_shortest = self.oracle.get_flows_on_shortest(self.sources, self.targets, d, pred_maps)
 

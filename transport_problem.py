@@ -54,12 +54,13 @@ class DualOracle:
     #         self.mu = snp.zeros(self.zones_num)
 
     #     @njit
-    def sum_flows_from_tree(self, flows, source, targets, pred_map_arr, d, edge_to_ind):
+    def sum_flows_from_tree(self, flows, source, targets, pred_map_arr, d):
         for v in targets:
             corr = d[source, v]
             while v != source:
                 v_pred = pred_map_arr[v]
-                flows[edge_to_ind[(v_pred, v)]] += corr
+                print(v, source, pred_map_arr)
+                flows[self.edge_to_ind[(v_pred, v)]] += corr
                 v = v_pred
         return flows
 
@@ -67,14 +68,14 @@ class DualOracle:
         return self.params.gamma * scipy.special.logsumexp(
             (-T + optim_params.la[..., None] + optim_params.mu[
                 None, ...]) / self.params.gamma) - self.l @ optim_params.la - self.w @ optim_params.mu + np.sum(
-            self.sigma_star(optim_params.t, self.t_bar, self.params.mu_pow, self.params.rho))
+            self.sigma_star(optim_params))
 
     def get_d(self, optim_params, T):
         return np.exp((-T + optim_params.la + optim_params.mu) / self.params.gamma) / np.sum(
             np.exp((-T + optim_params.la + optim_params.mu) / self.params.gamma))
 
     def invert_tau(self, optim_params):
-        return self.f_bar * ((optim_params.t - self.t_bar) / (self.params.k * self.t_bar)) ** self.params.mu_pow
+        return self.f_bar * ((optim_params.t ** self.params.mu_pow - self.t_bar ** self.params.mu_pow) / (self.params.rho * self.t_bar ** self.params.mu_pow))
 
     def grad_dF_dt(self, optim_params, flows_on_shortest):
         return -flows_on_shortest + self.invert_tau(optim_params)
@@ -91,8 +92,7 @@ class DualOracle:
         flows_on_shortest = np.zeros(self.edges_num)
         for ind, source in enumerate(sources):
             pred_map = pred_maps[ind]
-            self.sum_flows_from_tree(flows_on_shortest, source, targets, np.array(pred_map.a), d,
-                                     self.edge_to_ind)
+            self.sum_flows_from_tree(flows_on_shortest, source, targets, np.array(pred_map.a), d)
         return flows_on_shortest
 
     def get_T_and_predmaps(self, g, optim_params, sources, targets):
@@ -106,6 +106,7 @@ class DualOracle:
 
             short_distances, pred_map = shortest_distance(g, source=source, target=targets, weights=weights,
                                                           pred_map=True)
+            print("source: ", source, "targets: ", targets, "pred_map: ", pred_map.a)
             pred_maps.append(pred_map)
 
             for j in range(len(short_distances)):
@@ -113,6 +114,8 @@ class DualOracle:
 
         return T, pred_maps
 
-    def sigma_star(self, t, t_bar, mu_pow, rho):
-        return self.f_bar * ((t - t_bar) / (t_bar * rho)) ** mu_pow * (t - t_bar) / (1 + mu_pow)
+    def sigma_star(self, optim_params):
+        # return self.f_bar * ((t - t_bar) / (t_bar * self.params.rho)) ** self.params.mu_pow * \
+        #        (t - t_bar) / (1 + self.params.mu_pow)
+        return self.invert_tau(optim_params) * (optim_params.t - self.t_bar) / (1 + self.params.mu_pow)
 
