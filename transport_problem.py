@@ -65,13 +65,11 @@ class DualOracle:
         return flows
 
     def calc_F(self, optim_params, T):
-        return self.params.gamma * scipy.special.logsumexp(
-            (-T + optim_params.la[..., None] + optim_params.mu[
-                None, ...]) / self.params.gamma) - self.l @ optim_params.la - self.w @ optim_params.mu + np.sum(
-            self.sigma_star(optim_params))
+        logsum_term = self.params.gamma * scipy.special.logsumexp((-T + optim_params.la[..., None] + optim_params.mu[None, ...]) / self.params.gamma) 
+        return logsum_term - self.l @ optim_params.la - self.w @ optim_params.mu + np.sum(self.sigma_star(optim_params))
 
     def get_d(self, optim_params, T):
-        exp_arg = (-T + optim_params.la + optim_params.mu) / self.params.gamma
+        exp_arg = (-T + optim_params.la[..., None] + optim_params.mu) / self.params.gamma
         exp_arg -= exp_arg.max()
         exps = np.exp(exp_arg)
         return exps / exps.sum()
