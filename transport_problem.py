@@ -65,7 +65,7 @@ class DualOracle:
         return flows
 
     def calc_F(self, optim_params, T):
-        logsum_term = self.params.gamma * scipy.special.logsumexp((-T + optim_params.la[..., None] + optim_params.mu[None, ...]) / self.params.gamma) 
+        logsum_term = self.params.gamma * scipy.special.logsumexp((-T + optim_params.la[..., None] + optim_params.mu[None, ...]) / self.params.gamma)
         return logsum_term - self.l @ optim_params.la - self.w @ optim_params.mu + np.sum(self.sigma_star(optim_params))
 
     def get_d(self, optim_params, T):
@@ -81,10 +81,14 @@ class DualOracle:
         return -flows_on_shortest + self.invert_tau(optim_params)
 
     def grad_dF_dla(self, d):
-        return d.sum(axis=1) - self.l
+        val = d.sum(axis=1) - self.l
+        print("grad dF dla: ", np.linalg.norm(val))
+        return val
 
     def grad_dF_dmu(self, d):
-        return d.sum(axis=0) - self.w
+        val = d.sum(axis=0) - self.w
+        print("grad dF dmu: ", np.linalg.norm(val))
+        return val
 
     def get_flows_on_shortest(self, sources, targets, d, pred_maps):
         flows_on_shortest = np.zeros(self.edges_num)
@@ -116,4 +120,11 @@ class DualOracle:
         # return self.f_bar * ((t - t_bar) / (t_bar * self.params.rho)) ** self.params.mu_pow * \
         #        (t - t_bar) / (1 + self.params.mu_pow)
         return self.invert_tau(optim_params) * (optim_params.t - self.t_bar) / (1 + self.params.mu_pow)
+
+    def sigma(self, f):
+        return self.t_bar * f * (1 + (self.params.rho / (1 + 1 / self.params.mu_pow)) *
+                                 (f / self.f_bar) ** (1 / self.params.mu_pow))
+
+    def prime(self, f, d):
+        return self.sigma(f) + self.params.gamma + np.sum(d * np.log(d))
 

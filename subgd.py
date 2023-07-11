@@ -50,7 +50,7 @@ class OracleStacker:
         self.optim_params.mu = vars_block[self.T_LEN + self.LA_LEN:]
 
         T, pred_maps = self.oracle.get_T_and_predmaps(self.graph, self.optim_params, self.sources, self.targets)
-        #print("pred_maps: ", [i.a for i in pred_maps])
+        # print("pred_maps: ", [i.a for i in pred_maps])
         d = self.oracle.get_d(self.optim_params, T)
         flows_on_shortest = self.oracle.get_flows_on_shortest(self.sources, self.targets, d, pred_maps)
 
@@ -98,8 +98,7 @@ def ustm_mincost_mcf(
 
     print("start optimizing")
     # for k in tqdm(range(max_iter)):
-    for k in range(max_iter):
-        print(k)
+    for k in tqdm(range(max_iter)):
         while True:
             inner_iters_num += 1
 
@@ -118,6 +117,13 @@ def ustm_mincost_mcf(
             func_t, _, _ = oracle_stacker(t)
 
             lvalue = func_t
+
+            print("norm (t - y): ", np.linalg.norm(t - y))
+            print("norm t: ", np.linalg.norm(oracle_stacker.optim_params.t))
+            print("norm la: ", np.linalg.norm(oracle_stacker.optim_params.la))
+            print("norm mu: ", np.linalg.norm(oracle_stacker.optim_params.mu))
+            print()
+
             rvalue = (func_y + np.dot(grad_y, t - y) + 0.5 * L_value * np.sum((t - y) ** 2) +
                       #                      0.5 * alpha / A * eps_abs )  # because, in theory, noise accumulates
                       0.5 * eps_abs)
