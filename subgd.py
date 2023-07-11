@@ -51,19 +51,22 @@ class OracleStacker:
 
         T, pred_maps = self.oracle.get_T_and_predmaps(self.graph, self.optim_params, self.sources, self.targets)
         # print("pred_maps: ", [i.a for i in pred_maps])
-        d = self.oracle.get_d(self.optim_params, T)
-        flows_on_shortest = self.oracle.get_flows_on_shortest(self.sources, self.targets, d, pred_maps)
+        self.d = self.oracle.get_d(self.optim_params, T)
+        flows_on_shortest = self.oracle.get_flows_on_shortest(self.sources, self.targets, self.d, pred_maps)
 
         grad_t = self.oracle.grad_dF_dt(self.optim_params, flows_on_shortest)
-        grad_la = self.oracle.grad_dF_dla(d)
-        grad_mu = self.oracle.grad_dF_dmu(d)
+        grad_la = self.oracle.grad_dF_dla(self.d)
+        grad_mu = self.oracle.grad_dF_dmu(self.d)
 
         full_grad = np.hstack([grad_t, grad_la, grad_mu])
         dual_value = self.oracle.calc_F(self.optim_params, T)
 
-        # flows = self.oracle.get_flows_on_shortest(self.sources, self.targets, d, pred_maps)
+        self.flows = self.oracle.get_flows_on_shortest(self.sources, self.targets, self.d, pred_maps)
 
         return dual_value, full_grad, flows_on_shortest
+
+    def get_prime_value(self):
+        return self.oracle.prime(self.flows, self.d)
 
 
 # TODO: убрать unused переменные
