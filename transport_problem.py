@@ -69,6 +69,9 @@ class DualOracle:
             (-T + optim_params.la[..., None] + optim_params.mu[None, ...]) / self.params.gamma)
         return logsum_term - self.l @ optim_params.la - self.w @ optim_params.mu + np.sum(self.sigma_star(optim_params))
 
+    def calc_F_via_d(self, optim_params, d, T):
+        return -(d * T).sum() - self.params.gamma * (d * np.log(d)).sum() + np.sum(self.sigma_star(optim_params))
+
     def get_d(self, optim_params, T):
         exp_arg = (-T + optim_params.la[..., None] + optim_params.mu[None, ...]) / self.params.gamma
         exp_arg -= exp_arg.max()
@@ -76,8 +79,8 @@ class DualOracle:
         return exps / exps.sum()
 
     def invert_tau(self, optim_params):
-        return self.f_bar * ((optim_params.t ** self.params.mu_pow - self.t_bar ** self.params.mu_pow) / (
-                    self.params.rho * self.t_bar ** self.params.mu_pow))
+        return self.f_bar * ((optim_params.t - self.t_bar) ** self.params.mu_pow) / (
+                    self.params.rho * self.t_bar )** self.params.mu_pow
 
     def grad_dF_dt(self, optim_params, flows_on_shortest):
         return -flows_on_shortest + self.invert_tau(optim_params)
