@@ -43,7 +43,7 @@ class ACRCDOracleStacker:
         t_grad = np.hstack([grad_t])
         dual_value = self.oracle.calc_F(self.optim_params, T)
 
-        self.flows = self.oracle.get_flows_on_shortest(self.sources, self.targets, self.d, pred_maps)
+        self.flows = grad_t.copy()
         print('dual_value', dual_value)
         return t_grad, la_mu_grad, dual_value, self.flows
 
@@ -69,7 +69,7 @@ def ACRCD_star(oracle_stacker: ACRCDOracleStacker, x1_0, x2_0, K, L1_init=5000, 
     z1 = y1 = x1_0
     z2 = y2 = x2_0
 
-    t_start, la_mu_start = oracle_stacker.get_init_vars_block()  # dual costs w
+    la_mu_start = oracle_stacker.get_init_vars_block()  # dual costs w
     print(1)
   
 
