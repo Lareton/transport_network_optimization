@@ -68,8 +68,6 @@ def ACRCD_star(oracle_stacker: ACRCDOracleStacker, x1_0, x2_0, K, L1_init=5000, 
 
     z1 = y1 = x1_0
     z2 = y2 = x2_0
-
-    la_mu_start = oracle_stacker.get_init_vars_block()  # dual costs w
     print(1)
   
 
