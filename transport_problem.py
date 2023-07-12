@@ -128,5 +128,5 @@ class DualOracle:
                                  (f / self.f_bar) ** (1 / self.params.mu_pow))
 
     def prime(self, f, d):
-        return np.sum(self.sigma(f)) + self.params.gamma + np.sum(d * np.log(d))
+        return np.sum(self.sigma(f)) + self.params.gamma * np.sum(d * np.log(d))
 
