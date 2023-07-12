@@ -25,11 +25,9 @@ class OptimParams:
 
 
 class DualOracle:
-
-    def __init__(self, graph, net_df, l, w, params):
+    def __init__(self, graph, l, w, params):
         self.params = params
         self.graph = graph
-        self.net_df = net_df
         edges_arr = graph.get_edges()
         self.edge_to_ind = numba.typed.Dict.empty(key_type=types.UniTuple(types.int64, 2),
                                                   value_type=numba.core.types.int64)
@@ -38,7 +36,8 @@ class DualOracle:
 
         self.zones_num = len(l)
         self.edges_num = len(graph.ep.capacity.a)
-        self.nodes_cnt = self.zones_num
+
+        self.nodes_cnt = self.zones_num     # TODO
         self.edge_cnt = self.edges_num
 
         self.l = l
@@ -46,8 +45,8 @@ class DualOracle:
 
         assert len(l) == len(w)
 
-        self.f_bar = np.array(net_df['capacity'])
-        self.t_bar = np.array(net_df['free_flow_time'])
+        self.f_bar = np.array(graph.ep.capacity.a)
+        self.t_bar = np.array(graph.ep.fft.a)
 
     #         self.t = self.t_bar.copy() + np.random.rand(self.edge_cnt)
     #         self.la = np.zeros(self.zones_num)
