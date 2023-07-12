@@ -35,8 +35,8 @@ class ACRCDOracleStacker:
         T, pred_maps = self.oracle.get_T_and_predmaps(self.graph, self.optim_params, self.sources, self.targets)
         self.d = self.oracle.get_d(self.optim_params, T)
         grad_t = self.oracle.get_flows_on_shortest(self.sources, self.targets, self.d, pred_maps)
-        grad_la = self.oracle.grad_dF_dla(self.optim_params)
-        grad_mu = self.oracle.grad_dF_dmu(self.optim_params)
+        grad_la = self.oracle.grad_dF_dla(self.d)
+        grad_mu = self.oracle.grad_dF_dmu(self.d)
 
         #         print(grad_t.shape, grad_la.shape, grad_mu.shape)
         la_mu_grad = np.hstack([grad_la, grad_mu])
@@ -44,8 +44,8 @@ class ACRCDOracleStacker:
         dual_value = self.oracle.calc_F(self.optim_params, T)
 
         self.flows = self.oracle.get_flows_on_shortest(self.sources, self.targets, self.d, pred_maps)
-
-        return la_mu_grad, t_grad, dual_value, self.flows
+        print('dual_value', dual_value)
+        return t_grad, la_mu_grad, dual_value, self.flows
 
     def get_prime_value(self):
         return self.oracle.prime(self.flows, self.d)
@@ -71,9 +71,7 @@ def ACRCD_star(oracle_stacker: ACRCDOracleStacker, x1_0, x2_0, K, L1_init=5000, 
 
     t_start, la_mu_start = oracle_stacker.get_init_vars_block()  # dual costs w
     print(1)
-
-    x_start = np.copy(la_mu_start)
-    y_start = np.copy(t_start)
+  
 
     L1 = L1_init
     L2 = L2_init
@@ -85,11 +83,12 @@ def ACRCD_star(oracle_stacker: ACRCDOracleStacker, x1_0, x2_0, K, L1_init=5000, 
         x1 = tau * z1 + (1 - tau) * y1
         x2 = tau * z2 + (1 - tau) * y2
 
-        *_x, res_x = oracle_stacker(y_start, x_start)  # moved out of the inner loop
-
+        *_x, res_x, flows = oracle_stacker(x1, x2)  # moved out of the inner loop
         history.append(res_x)
         la_mu_grad_norms.append(np.linalg.norm(_x[0]))
+        print('la grad ', np.linalg.norm(_x[0]))
         t_grad_norms.append(np.linalg.norm(_x[1]))
+        print('mu grad', np.linalg.norm(_x[1]))
 
         n_ = L1 ** beta + L2 ** beta
         index_p = np.random.choice([0, 1], p=[L1 ** beta / n_,
@@ -102,8 +101,7 @@ def ACRCD_star(oracle_stacker: ACRCDOracleStacker, x1_0, x2_0, K, L1_init=5000, 
         inequal_is_true = False
         xs = [x1, x2]
         sampled_gradient_x = _x[index_p]
-
-        for _ in tdqm(range(100)):
+        for _ in tqdm(range(100)):
             if index_p == 0:
                 y1 = xs[index_p] - 1 / Ls[index_p] * sampled_gradient_x
                 y2 = x2
@@ -111,8 +109,7 @@ def ACRCD_star(oracle_stacker: ACRCDOracleStacker, x1_0, x2_0, K, L1_init=5000, 
                 y2 = xs[index_p] - 1 / Ls[index_p] * sampled_gradient_x
                 y1 = x1
 
-            *_y, res_y = oracle_stacker(y1, y2)
-
+            *_y, res_y, flows = oracle_stacker(y1, y2)
             inequal_is_true = 1 / (2 * Ls[index_p]) * np.linalg.norm(
                 sampled_gradient_x) ** 2 <= res_x - res_y + ADAPTIVE_DELTA
             if inequal_is_true:
