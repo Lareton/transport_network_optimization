@@ -3,10 +3,12 @@ import graph_tool as gt
 from graph_tool.topology import shortest_distance
 import numpy as np
 import typing
+from dataclasses import dataclass, field
 
 import numba
 from numba.core import types
 from tqdm import tqdm
+from typing import List
 
 from transport_problem import OptimParams, DualOracle, HyperParams
 
@@ -15,6 +17,20 @@ from transport_problem import OptimParams, DualOracle, HyperParams
 # oracle = None # TODO - создать оракла
 # sources, targets = None, None    # определять sources и targets
 # oracle_stacker = OracleStacker(oracle, graph, sources, targets)
+
+@dataclass
+class USTM_Results:
+    history_la_grad_norm: List[float] = field(default_factory=list)
+    history_mu_grad_norm: List[float] = field(default_factory=list)
+    history_dual_values: List[float] = field(default_factory=list)
+    history_prime_values: List[float] = field(default_factory=list)
+    history_dual_gap: List[float] = field(default_factory=list)
+    history_A: List[float] = field(default_factory=list)
+    history_la_mu_grad_norm: List[float] = field(default_factory=list)
+
+    d_avaraged: np.ndarray = None
+    flows_averaged: np.ndarray = None
+    t_avaraged: np.ndarray = None
 
 
 class OracleStacker:
@@ -70,7 +86,7 @@ class OracleStacker:
 
         self.flows = self.oracle.get_flows_on_shortest(self.sources, self.targets, self.d, pred_maps)
 
-        return dual_value, full_grad, flows_on_shortest
+        return dual_value, flows_on_shortest, full_grad, grad_t, grad_la, grad_mu
 
     def get_prime_value(self):
         return self.oracle.prime(self.flows, self.d)
@@ -86,14 +102,8 @@ def ustm_mincost_mcf(
         eps_cons_abs: float,
         max_iter: int = 10000,
         stop_by_crit: bool = True,
-) -> tuple:
-    dgap_log = []
-    cons_log = []
-    A_log = []
-    history_dual_values = []
-    history_prime_values = []
-    d_history = []
-    flows_history = []
+) -> USTM_Results:
+    results = USTM_Results()
 
     A_prev = 0.0
     print(1)
@@ -108,7 +118,7 @@ def ustm_mincost_mcf(
     print(1)
     grad_sum_prev = np.zeros(len(t_start))
 
-    _, grad_y, flows_averaged = oracle_stacker(y_start)
+    _, flows_averaged, grad_y, *_ = oracle_stacker(y_start)
     d_avaraged = oracle_stacker.d.copy()
 
     L_value = np.linalg.norm(grad_y) / 10
@@ -126,8 +136,7 @@ def ustm_mincost_mcf(
             A = A_prev + alpha
 
             y = (alpha * u_prev + A_prev * t_prev) / A
-            func_y, grad_y, flows_y = oracle_stacker(y)
-            #             history_dual_values.append(func_y)
+            func_y, flows_y, grad_y, *_ = oracle_stacker(y)
 
             grad_sum = grad_sum_prev + alpha * grad_y
 
@@ -137,7 +146,7 @@ def ustm_mincost_mcf(
             # u = np.maximum(0, y_start - grad_sum)
 
             t = (alpha * u + A_prev * t_prev) / A
-            func_t, _, _ = oracle_stacker(t)
+            func_t, _, full_grad, grad_t, grad_la, grad_mu = oracle_stacker(t)
 
             lvalue = func_t
 
@@ -161,8 +170,10 @@ def ustm_mincost_mcf(
         # history_dual_values.append(func_y)
         #         history_prime_values.append(oracle_stacker.get_prime_value())
 
-        history_dual_values.append(func_t)
-        history_prime_values.append(oracle_stacker.oracle.prime(flows_averaged, d_avaraged))
+        results.history_dual_values.append(func_y)
+        results.history_dual_values.append(func_t)
+        results.history_prime_values.append(oracle_stacker.oracle.prime(flows_averaged, d_avaraged))
+        results.history_la_mu_grad_norm.append(np.linalg.norm(np.hstack([grad_la, grad_mu])))
 
         A_prev = A
         L_value /= 2
@@ -177,15 +188,13 @@ def ustm_mincost_mcf(
         flows_averaged = flows_averaged * (1 - teta) + flows_y * teta
         #         flows_averaged_e = flows_averaged.sum(axis=(0, 1))
         d_avaraged = d_avaraged * (1 - teta) + oracle_stacker.d * teta
-        d_history.append(oracle_stacker.d)
-        flows_history.append(flows_y)
 
-        dgap_log.append(oracle_stacker.oracle.prime(flows_averaged, d_avaraged) + func_t)
-        # cons_log.append(model.constraints_violation_l1(flows_averaged_e))
-        A_log.append(A)
+        results.d_avaraged = oracle_stacker.d
 
-        if stop_by_crit and dgap_log[-1] <= eps_abs and cons_log[-1] <= eps_cons_abs:
+        results.history_dual_gap.append(oracle_stacker.oracle.prime(flows_averaged, d_avaraged) + func_t)
+        results.history_A.append(A)
+
+        if stop_by_crit and results.history_dual_gap[-1] <= eps_abs: # and cons_log[-1] <= eps_cons_abs:
             break
 
-    return t, flows_history, flows_averaged, d_history, d_avaraged, history_prime_values, history_dual_values, dgap_log,\
-           cons_log, A_log, history_dual_values, history_prime_values
+    return results
