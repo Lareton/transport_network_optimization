@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 import numba
 from numba.core import types
 from tqdm import tqdm
-from typing import List
+from typing import List, Tuple
 
 from transport_problem import OptimParams, DualOracle, HyperParams
 
@@ -27,10 +27,12 @@ class USTM_Results:
     history_dual_gap: List[float] = field(default_factory=list)
     history_A: List[float] = field(default_factory=list)
     history_la_mu_grad_norm: List[float] = field(default_factory=list)
+    history_count_calls: List[int] = field(default_factory=list)
 
     d_avaraged: np.ndarray = None
     flows_averaged: np.ndarray = None
     t_avaraged: np.ndarray = None
+    count_oracle_calls: int = 0
 
 
 class OracleStacker:
@@ -84,7 +86,7 @@ class OracleStacker:
         full_grad = np.hstack([grad_t, grad_la, grad_mu])
         dual_value = self.oracle.calc_F(self.optim_params, T)
 
-        self.flows = self.oracle.get_flows_on_shortest(self.sources, self.targets, self.d, pred_maps)
+        self.flows = flows_on_shortest.copy() # self.oracle.get_flows_on_shortest(self.sources, self.targets, self.d, pred_maps)
 
         return dual_value, flows_on_shortest, full_grad, grad_t, grad_la, grad_mu
 
@@ -119,6 +121,8 @@ def ustm_mincost_mcf(
     grad_sum_prev = np.zeros(len(t_start))
 
     _, flows_averaged, grad_y, *_ = oracle_stacker(y_start)
+    results.count_oracle_calls += 1
+
     d_avaraged = oracle_stacker.d.copy()
 
     L_value = np.linalg.norm(grad_y) / 10
@@ -137,6 +141,7 @@ def ustm_mincost_mcf(
 
             y = (alpha * u_prev + A_prev * t_prev) / A
             func_y, flows_y, grad_y, *_ = oracle_stacker(y)
+            results.count_oracle_calls += 1
 
             grad_sum = grad_sum_prev + alpha * grad_y
 
@@ -170,7 +175,8 @@ def ustm_mincost_mcf(
         # history_dual_values.append(func_y)
         #         history_prime_values.append(oracle_stacker.get_prime_value())
 
-        results.history_dual_values.append(func_y)
+        # cnt_oracle_calls = results.count_oracle_calls
+        results.history_count_calls.append(results.count_oracle_calls)
         results.history_dual_values.append(func_t)
         results.history_prime_values.append(oracle_stacker.oracle.prime(flows_averaged, d_avaraged))
         results.history_la_mu_grad_norm.append(np.linalg.norm(np.hstack([grad_la, grad_mu])))
