@@ -70,7 +70,7 @@ class DualOracle:
         return logsum_term - self.l @ optim_params.la - self.w @ optim_params.mu + np.sum(self.sigma_star(optim_params))
 
     def get_d(self, optim_params, T):
-        exp_arg = (-T + optim_params.la[..., None] + optim_params.mu) / self.params.gamma
+        exp_arg = (-T + optim_params.la[..., None] + optim_params.mu[None, ...]) / self.params.gamma
         exp_arg -= exp_arg.max()
         exps = np.exp(exp_arg)
         return exps / exps.sum()
