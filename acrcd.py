@@ -42,8 +42,13 @@ class ACRCDOracleStacker:
         assert (len(t_block)) == self.t_vector_size
         self.optim_params.t = t_block
         T, pred_maps = self.oracle.get_T_and_predmaps(self.graph, self.optim_params, self.sources, self.targets)
+
+        # FIXME: dont call
         self.d = self.oracle.get_d(self.optim_params, T)
-        grad_t = self.oracle.get_flows_on_shortest(self.sources, self.targets, self.d, pred_maps)
+
+        flows_on_shortest = self.oracle.get_flows_on_shortest(self.sources, self.targets, self.d, pred_maps)
+        grad_t = self.oracle.grad_dF_dt(self.optim_params, flows_on_shortest)
+
         t_grad = np.hstack([grad_t])
         log.t_grad_norms.append(np.linalg.norm(t_grad))
         dual_value = self.oracle.calc_F(self.optim_params, T)
@@ -55,15 +60,21 @@ class ACRCDOracleStacker:
         assert (len(la_mu_block)) == self.la_mu_vector_size
         self.optim_params.la = la_mu_block[:self.LA_LEN]
         self.optim_params.mu = la_mu_block[self.LA_LEN:]
+
+        # FIXME: dont call
         T, pred_maps = self.oracle.get_T_and_predmaps(self.graph, self.optim_params, self.sources, self.targets)
+
         self.d = self.oracle.get_d(self.optim_params, T)
         grad_la = self.oracle.grad_dF_dla(self.d)
         grad_mu = self.oracle.grad_dF_dmu(self.d)
         la_mu_grad = np.hstack([grad_la, grad_mu])
         log.la_mu_grad_norms.append(np.linalg.norm(la_mu_grad))
+        print(f"{T.shape=}")
         dual_value = self.oracle.calc_F(self.optim_params, T)
+        # dual_value = self.oracle.calc_F_via_d(self.optim_params, self.d,T)
         log.la_mu_calls += 1
-        return la_mu_grad, dual_value
+        print(f"{dual_value=}")
+        return la_mu_grad, dual_value, self.d
 
     def __call__(self, t_block, la_mu_block, *args, **kwargs):
         # For backward compatibility
@@ -100,7 +111,7 @@ class ACRCDOracleStacker:
 # ACRCD
 # y (paper) = q(code_)
 def ACRCD_star(oracle_stacker: ACRCDOracleStacker, x1_0, x2_0, K, L1_init=5000, L2_init=5000):
-    ADAPTIVE_DELTA = 1e-8
+    ADAPTIVE_DELTA = 1e-5
 
     flows_averaged = np.zeros(oracle_stacker.oracle.edges_num)
     corrs_averaged = np.zeros(oracle_stacker.oracle.zones_num)
@@ -125,11 +136,15 @@ def ACRCD_star(oracle_stacker: ACRCDOracleStacker, x1_0, x2_0, K, L1_init=5000, 
         x1 = tau * z1 + (1 - tau) * y1
         x2 = tau * z2 + (1 - tau) * y2
 
-        *_x, res_x, flows = oracle_stacker.t_step(x1)  # moved out of the inner loop
-
         n_ = L1 ** beta + L2 ** beta
         index_p = np.random.choice([0, 1], p=[L1 ** beta / n_,
                                               L2 ** beta / n_])
+
+        if index_p == 0:         
+            sampled_gradient_x, res_x, flows = oracle_stacker.t_step(x1)  # moved out of the inner loop
+        elif index_p == 1: 
+            sampled_gradient_x, res_x, d = oracle_stacker.la_mu_step(x2)  # moved out of the inner loop
+
         Ls = [L1, L2]
         Ls[index_p] /= 2
 
@@ -137,20 +152,20 @@ def ACRCD_star(oracle_stacker: ACRCDOracleStacker, x1_0, x2_0, K, L1_init=5000, 
 
         inequal_is_true = False
         xs = [x1, x2]
-        sampled_gradient_x = _x[0]
+        #sampled_gradient_x = _x[0]
         for _ in tqdm(range(100)):
             if index_p == 0:
                 print(f"{sampled_gradient_x.shape=}")
-                y1 = xs[index_p] - 1 / Ls[index_p] * sampled_gradient_x
+                y1 = np.maximum(xs[index_p] - 1 / Ls[index_p] * sampled_gradient_x, oracle_stacker.oracle.t_bar)
                 y2 = x2
             else:
-                y2 = np.maximum(xs[index_p] - 1 / Ls[index_p] * sampled_gradient_x, oracle_stacker.oracle.t_bar)
+                y2 = xs[index_p] - 1 / Ls[index_p] * sampled_gradient_x
                 y1 = x1
 
-            if index_p == 1:
-                *_y, res_y, flows = oracle_stacker.t_step(y1)
+            if index_p == 0:
+                *_y, res_y, flaows = oracle_stacker.t_step(y1)
             else:
-                *_y, res_y = oracle_stacker.la_mu_step(y2)
+                _y, res_y = oracle_stacker.la_mu_step(y2)
             inequal_is_true = 1 / (2 * Ls[index_p]) * np.linalg.norm(
                 sampled_gradient_x) ** 2 <= res_x - res_y + ADAPTIVE_DELTA
 
@@ -158,6 +173,8 @@ def ACRCD_star(oracle_stacker: ACRCDOracleStacker, x1_0, x2_0, K, L1_init=5000, 
                 sampled_gradient_x) ** 2)
             print(res_x)
             print(res_y)
+            
+            print(index_p)
             if inequal_is_true:
                 break
             Ls[index_p] *= 2
@@ -178,6 +195,5 @@ def ACRCD_star(oracle_stacker: ACRCDOracleStacker, x1_0, x2_0, K, L1_init=5000, 
         x2_list.append(x2)
 
     return log.t_calls, log.la_mu_calls, log.history, log.la_mu_grad_norms, log.t_grad_norms, x1_list, x2_list, [L1, L2]
-
 
 
