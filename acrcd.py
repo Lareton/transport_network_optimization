@@ -82,7 +82,7 @@ class ACRCDOracleStacker:
         log.la_mu_calls += 1
         if np.isnan(dual_value):
             print(self.optim_params)
-            print(T.shape)n
+            print(T.shape)
             sys.exit()
         print(f"{dual_value=}")
         return dual_value, la_mu_grad, self.d
