@@ -65,6 +65,8 @@ class OracleStacker:
         print("vars block grad: ", np.linalg.norm(vars_block))
         assert len(vars_block) == self.T_LEN + self.LA_LEN + self.MU_LEN
         self.optim_params.t = vars_block[:self.T_LEN]
+        self.optim_params.t = np.maximum(self.optim_params.t, self.oracle.t_bar)
+
         print("t in optim params grad: ", np.linalg.norm(self.optim_params.t), np.linalg.norm(vars_block[:self.T_LEN]))
         print("la in optim params norm: ", np.linalg.norm(self.optim_params.la))
         print("mu in optim params norm: ", np.linalg.norm(self.optim_params.mu))
@@ -142,7 +144,7 @@ def ustm_mincost_mcf(
             A = A_prev + alpha
 
             y = (alpha * u_prev + A_prev * t_prev) / A
-            y[:oracle_stacker.T_LEN] = np.maximum(oracle_stacker.oracle.t_bar, y[:oracle_stacker.T_LEN]) # FIXME ???
+            # y[:oracle_stacker.T_LEN] = np.maximum(oracle_stacker.oracle.t_bar, y[:oracle_stacker.T_LEN]) # FIXME ???
 
             func_y, flows_y, grad_y, *_ = oracle_stacker(y)
             results.count_oracle_calls += 1
@@ -151,13 +153,13 @@ def ustm_mincost_mcf(
 
             u = y_start - grad_sum
 
+            print("count values below t_bar in old t: ", (u[:oracle_stacker.T_LEN] < oracle_stacker.oracle.t_bar).sum())
+            u[:oracle_stacker.T_LEN] = np.maximum(oracle_stacker.oracle.t_bar, u[:oracle_stacker.T_LEN])
+            print("count values below t_bar in new t: ", (u[:oracle_stacker.T_LEN] < oracle_stacker.oracle.t_bar).sum())
+
             # u = np.maximum(0, y_start - grad_sum)
 
             t = (alpha * u + A_prev * t_prev) / A
-
-            print("count values below t_bar in old t: ", (t[:oracle_stacker.T_LEN] < oracle_stacker.oracle.t_bar).sum())
-            t[:oracle_stacker.T_LEN] = np.maximum(oracle_stacker.oracle.t_bar, t[:oracle_stacker.T_LEN])
-            print("count values below t_bar in new t: ", (t[:oracle_stacker.T_LEN] < oracle_stacker.oracle.t_bar).sum())
 
             func_t, _, full_grad, grad_t, grad_la, grad_mu = oracle_stacker(t)
 
