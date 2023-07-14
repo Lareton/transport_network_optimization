@@ -42,6 +42,7 @@ class ACRCDOracleStacker:
 
     def t_step(self, t_block):
         assert (len(t_block)) == self.t_vector_size
+        t_block = np.maximum(t_block, self.oracle.t_bar)
         self.optim_params.t = t_block
         T, pred_maps = self.oracle.get_T_and_predmaps(self.graph, self.optim_params, self.sources, self.targets)
 
@@ -126,7 +127,7 @@ def ACRCD_star(oracle_stacker: ACRCDOracleStacker, x1_0, x2_0, K, L1_init=5000, 
 
     flows_averaged = np.zeros(oracle_stacker.oracle.edges_num)
     corrs_averaged = np.zeros(oracle_stacker.oracle.zones_num)
-    steps_sum = 0
+    steps_sum = [0, 0]
     t_grad_norms = []
 
     x1_list = [x1_0]
@@ -191,6 +192,16 @@ def ACRCD_star(oracle_stacker: ACRCDOracleStacker, x1_0, x2_0, K, L1_init=5000, 
                 break
             Ls[index_p] *= 2
 
+        if index_p == 0:
+            flows_averaged = (steps_sum[index_p] * flows_averaged + (1 / Ls[index_p]) * flows) / (steps_sum[index_p] + Ls[index_p])
+            sum_ = np.sum(flows_averaged)
+            flows = flows
+
+        else:
+            corrs_averaged = (steps_sum[index_p] * corrs_averaged + (1 / Ls[index_p]) * d) / (steps_sum[index_p] + Ls[index_p])
+            sum_ = np.sum(corrs_averaged)
+
+        steps_sum[index_p] += (1 / Ls[index_p])
         L1, L2 = Ls
         n_ = L1 ** beta + L2 ** beta
         alpha = (i + 2) / (2 * n_ ** 2)
@@ -201,11 +212,11 @@ def ACRCD_star(oracle_stacker: ACRCDOracleStacker, x1_0, x2_0, K, L1_init=5000, 
         if index_p == 1:
             z2 = z2 - (1 / L2) * alpha * n_ * sampled_gradient_x
 
-        steps_sum += (1 / L1) * alpha
-
         x1_list.append(x1)
         x2_list.append(x2)
+        log.history.append(oracle_stacker.oracle.prime(flows_averaged, corrs_averaged) - res_y)
         print(f"{log.t_calls=}")
         print(f"{log.la_mu_calls=}")
+        print(f"{oracle_stacker.oracle.prime(flows_averaged, corrs_averaged)=}")
 
     return log.t_calls, log.la_mu_calls, log.history, log.la_mu_grad_norms, log.t_grad_norms, x1_list, x2_list, [L1, L2]
