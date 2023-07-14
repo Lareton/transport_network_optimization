@@ -1,3 +1,5 @@
+import sys
+
 from tqdm import tqdm
 
 from transport_network_optimization.transport_problem import DualOracle, OptimParams
@@ -52,10 +54,14 @@ class ACRCDOracleStacker:
         t_grad = np.hstack([grad_t])
         log.t_grad_norms.append(np.linalg.norm(t_grad))
         dual_value = self.oracle.calc_F(self.optim_params, T)
-        self.flows = grad_t.copy()
+        self.flows = flows_on_shortest.copy()
         log.t_calls += 1
         print(f"{dual_value=}")
-        print(f"{T=}")
+        if np.isnan(dual_value):
+            print(self.optim_params)
+            print(T.shape)
+            dual_value = self.oracle.calc_F(self.optim_params, T)
+            sys.exit()
         return dual_value, t_grad, self.flows
 
     def la_mu_step(self, la_mu_block):
@@ -71,10 +77,13 @@ class ACRCDOracleStacker:
         grad_mu = self.oracle.grad_dF_dmu(self.d)
         la_mu_grad = np.hstack([grad_la, grad_mu])
         log.la_mu_grad_norms.append(np.linalg.norm(la_mu_grad))
-        print(f"{T.shape=}")
         dual_value = self.oracle.calc_F(self.optim_params, T)
         # dual_value = self.oracle.calc_F_via_d(self.optim_params, self.d,T)
         log.la_mu_calls += 1
+        if np.isnan(dual_value):
+            print(self.optim_params)
+            print(T.shape)n
+            sys.exit()
         print(f"{dual_value=}")
         return dual_value, la_mu_grad, self.d
 
@@ -132,8 +141,6 @@ def ACRCD_star(oracle_stacker: ACRCDOracleStacker, x1_0, x2_0, K, L1_init=5000, 
 
     for i in tqdm(range(K)):
         tau = 2 / (i + 2)
-        print(f"{z2.shape=}")
-        print(f"{y2.shape=}")
         x1 = tau * z1 + (1 - tau) * y1
         x2 = tau * z2 + (1 - tau) * y2
 
@@ -155,7 +162,7 @@ def ACRCD_star(oracle_stacker: ACRCDOracleStacker, x1_0, x2_0, K, L1_init=5000, 
 
         inequal_is_true = False
         xs = [x1, x2]
-        #sampled_gradient_x = _x[0]
+        # sampled_gradient_x = _x[0]
         for i in range(100):
             if index_p == 0:
                 y1 = np.maximum(xs[index_p] - 1 / Ls[index_p] * sampled_gradient_x, oracle_stacker.oracle.t_bar)
@@ -166,16 +173,20 @@ def ACRCD_star(oracle_stacker: ACRCDOracleStacker, x1_0, x2_0, K, L1_init=5000, 
 
             if index_p == 0:
                 res_y, _y, flows = oracle_stacker.t_step(y1)
+                if np.isnan(res_y):
+                    sys.exit()
+                print(f"{res_y=}")
             else:
                 res_y, _y, d = oracle_stacker.la_mu_step(y2)
-                
+                print(f"{res_y=}")
+
             inequal_is_true = 1 / (2 * Ls[index_p]) * np.linalg.norm(
                 sampled_gradient_x) ** 2 <= res_x - res_y + ADAPTIVE_DELTA
-            print("1 ",  1 / (2 * Ls[index_p]) * np.linalg.norm(
+            print("1 ", 1 / (2 * Ls[index_p]) * np.linalg.norm(
                 sampled_gradient_x) ** 2)
-            print(f"{res_x=}")
-            print(f"{res_y=}")
+
             print("2 ", res_x - res_y + ADAPTIVE_DELTA)
+            print(f"{inequal_is_true=}")
             if inequal_is_true:
                 break
             Ls[index_p] *= 2
@@ -198,4 +209,3 @@ def ACRCD_star(oracle_stacker: ACRCDOracleStacker, x1_0, x2_0, K, L1_init=5000, 
         print(f"{log.la_mu_calls=}")
 
     return log.t_calls, log.la_mu_calls, log.history, log.la_mu_grad_norms, log.t_grad_norms, x1_list, x2_list, [L1, L2]
-
