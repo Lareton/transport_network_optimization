@@ -163,7 +163,7 @@ def ACRCD_star(oracle_stacker: ACRCDOracleStacker, x1_0, x2_0, K, L1_init=5000, 
         inequal_is_true = False
         xs = [x1, x2]
         # sampled_gradient_x = _x[0]
-        for i in range(100):
+        for _ in range(100):
             if index_p == 0:
                 y1 = np.maximum(xs[index_p] - 1 / Ls[index_p] * sampled_gradient_x, oracle_stacker.oracle.t_bar)
                 y2 = x2
