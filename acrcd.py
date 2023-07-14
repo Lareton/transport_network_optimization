@@ -127,7 +127,7 @@ def ACRCD_star(oracle_stacker: ACRCDOracleStacker, x1_0, x2_0, K, L1_init=5000, 
 
     flows_averaged = np.zeros(oracle_stacker.oracle.edges_num)
     corrs_averaged = np.zeros(oracle_stacker.oracle.zones_num)
-    steps_sum = 0
+    steps_sum = [0, 0]
     t_grad_norms = []
 
     x1_list = [x1_0]
@@ -181,7 +181,6 @@ def ACRCD_star(oracle_stacker: ACRCDOracleStacker, x1_0, x2_0, K, L1_init=5000, 
                 res_y, _y, d = oracle_stacker.la_mu_step(y2)
                 print(f"{res_y=}")
 
-
             inequal_is_true = 1 / (2 * Ls[index_p]) * np.linalg.norm(
                 sampled_gradient_x) ** 2 <= res_x - res_y + ADAPTIVE_DELTA
             print("1 ", 1 / (2 * Ls[index_p]) * np.linalg.norm(
@@ -193,17 +192,16 @@ def ACRCD_star(oracle_stacker: ACRCDOracleStacker, x1_0, x2_0, K, L1_init=5000, 
                 break
             Ls[index_p] *= 2
 
-
-
         if index_p == 0:
-            flows_averaged = (steps_sum * flows_averaged + (1 / Ls[index_p]) * flows) / steps_sum
+            flows_averaged = (steps_sum[index_p] * flows_averaged + (1 / Ls[index_p]) * flows) / (steps_sum[index_p] + Ls[index_p])
             sum_ = np.sum(flows_averaged)
             flows = flows
+
         else:
-            corrs_averaged = (steps_sum * corrs_averaged + (1 / Ls[index_p]) * d) / steps_sum
+            corrs_averaged = (steps_sum[index_p] * corrs_averaged + (1 / Ls[index_p]) * d) / (steps_sum[index_p] + Ls[index_p])
             sum_ = np.sum(corrs_averaged)
 
-        steps_sum += (1 / Ls[index_p])
+        steps_sum[index_p] += (1 / Ls[index_p])
         L1, L2 = Ls
         n_ = L1 ** beta + L2 ** beta
         alpha = (i + 2) / (2 * n_ ** 2)
