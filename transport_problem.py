@@ -24,6 +24,17 @@ class OptimParams:
     mu: np.ndarray
 
 
+@njit
+def sum_flows_from_tree(edge_to_ind, flows, source, targets, pred_map_arr, d):
+    for v in targets:
+        corr = d[source, v]
+        while v != source:
+            v_pred = pred_map_arr[v]
+            flows[edge_to_ind[(v_pred, v)]] += corr
+            v = v_pred
+    return flows
+
+
 class DualOracle:
     def __init__(self, graph, l, w, params):
         self.params = params
@@ -37,7 +48,6 @@ class DualOracle:
         self.zones_num = len(l)
         self.edges_num = len(graph.ep.capacity.a)
 
-        self.nodes_cnt = self.zones_num     # TODO
         self.edge_cnt = self.edges_num
 
         self.l = l
@@ -51,17 +61,6 @@ class DualOracle:
     #         self.t = self.t_bar.copy() + np.random.rand(self.edge_cnt)
     #         self.la = np.zeros(self.zones_num)
     #         self.mu = snp.zeros(self.zones_num)
-
-    #     @njit
-    def sum_flows_from_tree(self, flows, source, targets, pred_map_arr, d):
-        for v in targets:
-            corr = d[source, v]
-            while v != source:
-                v_pred = pred_map_arr[v]
-                # print(v, source, pred_map_arr)
-                flows[self.edge_to_ind[(v_pred, v)]] += corr
-                v = v_pred
-        return flows
 
     def calc_F(self, optim_params, T):
         logsum_term = self.params.gamma * scipy.special.logsumexp(
@@ -79,7 +78,7 @@ class DualOracle:
 
     def invert_tau(self, optim_params):
         return self.f_bar * ((optim_params.t - self.t_bar) ** self.params.mu_pow) / (
-                    self.params.rho * self.t_bar )** self.params.mu_pow
+                    self.params.rho * self.t_bar ) ** self.params.mu_pow
 
     def grad_dF_dt(self, optim_params, flows_on_shortest):
         return -flows_on_shortest + self.invert_tau(optim_params)
@@ -98,7 +97,7 @@ class DualOracle:
         flows_on_shortest = np.zeros(self.edges_num)
         for ind, source in enumerate(sources):
             pred_map = pred_maps[ind]
-            self.sum_flows_from_tree(flows_on_shortest, source, targets, np.array(pred_map.a), d)
+            sum_flows_from_tree(self.edge_to_ind, flows_on_shortest, source, targets, np.array(pred_map.a), d)
         return flows_on_shortest
 
     def get_T_and_predmaps(self, g, optim_params, sources, targets):

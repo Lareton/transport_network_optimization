@@ -64,17 +64,15 @@ class OracleStacker:
         """
         print("vars block grad: ", np.linalg.norm(vars_block))
         assert len(vars_block) == self.T_LEN + self.LA_LEN + self.MU_LEN
-
         self.optim_params.t = vars_block[:self.T_LEN]
         print("t in optim params grad: ", np.linalg.norm(self.optim_params.t), np.linalg.norm(vars_block[:self.T_LEN]))
-        print("la in optim params grad: ", np.linalg.norm(self.optim_params.la))
-        print("mu in optim params grad: ", np.linalg.norm(self.optim_params.mu))
+        print("la in optim params norm: ", np.linalg.norm(self.optim_params.la))
+        print("mu in optim params norm: ", np.linalg.norm(self.optim_params.mu))
 
         self.optim_params.la = vars_block[self.T_LEN:self.T_LEN + self.LA_LEN]
         self.optim_params.mu = vars_block[self.T_LEN + self.LA_LEN:]
 
         T, pred_maps = self.oracle.get_T_and_predmaps(self.graph, self.optim_params, self.sources, self.targets)
-        print("norm T: ", np.linalg.norm(T))
 
         self.d = self.oracle.get_d(self.optim_params, T)
         flows_on_shortest = self.oracle.get_flows_on_shortest(self.sources, self.targets, self.d, pred_maps)
@@ -86,7 +84,7 @@ class OracleStacker:
         full_grad = np.hstack([grad_t, grad_la, grad_mu])
         dual_value = self.oracle.calc_F(self.optim_params, T)
 
-        self.flows = flows_on_shortest.copy() # self.oracle.get_flows_on_shortest(self.sources, self.targets, self.d, pred_maps)
+        self.flows = flows_on_shortest.copy()  # self.oracle.get_flows_on_shortest(self.sources, self.targets, self.d, pred_maps)
 
         return dual_value, flows_on_shortest, full_grad, grad_t, grad_la, grad_mu
 
@@ -131,6 +129,10 @@ def ustm_mincost_mcf(
     inner_iters_num = 0
 
     print("start optimizing")
+    print("start init y is below t_bar count: ", (y_start[:oracle_stacker.T_LEN] < oracle_stacker.oracle.t_bar).sum())
+    print("start init u is below t_bar count: ", (u_prev[:oracle_stacker.T_LEN] < oracle_stacker.oracle.t_bar).sum())
+    print("start init t is below t_bar count: ", (t_prev[:oracle_stacker.T_LEN] < oracle_stacker.oracle.t_bar).sum())
+
     # for k in tqdm(range(max_iter)):
     for k in tqdm(range(max_iter)):
         while True:
@@ -140,17 +142,23 @@ def ustm_mincost_mcf(
             A = A_prev + alpha
 
             y = (alpha * u_prev + A_prev * t_prev) / A
+            y[:oracle_stacker.T_LEN] = np.maximum(oracle_stacker.oracle.t_bar, y[:oracle_stacker.T_LEN]) # FIXME ???
+
             func_y, flows_y, grad_y, *_ = oracle_stacker(y)
             results.count_oracle_calls += 1
 
             grad_sum = grad_sum_prev + alpha * grad_y
 
             u = y_start - grad_sum
-            print("count values below t_bar in new t: ", (u[:oracle_stacker.T_LEN] < oracle_stacker.oracle.t_bar).sum())
-            u[:oracle_stacker.T_LEN] = np.maximum(oracle_stacker.oracle.t_bar, u[:oracle_stacker.T_LEN])
+
             # u = np.maximum(0, y_start - grad_sum)
 
             t = (alpha * u + A_prev * t_prev) / A
+
+            print("count values below t_bar in old t: ", (t[:oracle_stacker.T_LEN] < oracle_stacker.oracle.t_bar).sum())
+            t[:oracle_stacker.T_LEN] = np.maximum(oracle_stacker.oracle.t_bar, t[:oracle_stacker.T_LEN])
+            print("count values below t_bar in new t: ", (t[:oracle_stacker.T_LEN] < oracle_stacker.oracle.t_bar).sum())
+
             func_t, _, full_grad, grad_t, grad_la, grad_mu = oracle_stacker(t)
 
             lvalue = func_t
@@ -200,7 +208,7 @@ def ustm_mincost_mcf(
         results.history_dual_gap.append(oracle_stacker.oracle.prime(flows_averaged, d_avaraged) + func_t)
         results.history_A.append(A)
 
-        if stop_by_crit and results.history_dual_gap[-1] <= eps_abs: # and cons_log[-1] <= eps_cons_abs:
+        if stop_by_crit and results.history_dual_gap[-1] <= eps_abs:  # and cons_log[-1] <= eps_cons_abs:
             break
 
     return results
