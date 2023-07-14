@@ -42,6 +42,7 @@ class ACRCDOracleStacker:
 
     def t_step(self, t_block):
         assert (len(t_block)) == self.t_vector_size
+        t_block = np.maximum(t_block, self.oracle.t_bar)
         self.optim_params.t = t_block
         T, pred_maps = self.oracle.get_T_and_predmaps(self.graph, self.optim_params, self.sources, self.targets)
 
@@ -180,6 +181,7 @@ def ACRCD_star(oracle_stacker: ACRCDOracleStacker, x1_0, x2_0, K, L1_init=5000, 
                 res_y, _y, d = oracle_stacker.la_mu_step(y2)
                 print(f"{res_y=}")
 
+
             inequal_is_true = 1 / (2 * Ls[index_p]) * np.linalg.norm(
                 sampled_gradient_x) ** 2 <= res_x - res_y + ADAPTIVE_DELTA
             print("1 ", 1 / (2 * Ls[index_p]) * np.linalg.norm(
@@ -203,8 +205,14 @@ def ACRCD_star(oracle_stacker: ACRCDOracleStacker, x1_0, x2_0, K, L1_init=5000, 
 
         steps_sum += (1 / L1) * alpha
 
+        if index_p == 0:
+            flows_averaged = (steps_sum * flows_averaged + (1 / L1) * alpha * flows) / steps_sum
+        else:
+            corrs_averaged = (steps_sum * corrs_averaged + (1 / L1) * alpha * d) / steps_sum
+
         x1_list.append(x1)
         x2_list.append(x2)
+        log.history.append(oracle_stacker.oracle.prime(flows_averaged, corrs_averaged) + res_y)
         print(f"{log.t_calls=}")
         print(f"{log.la_mu_calls=}")
 
