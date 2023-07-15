@@ -2,13 +2,15 @@ import numba
 import numpy as np
 from dataclasses import dataclass
 from typing import TypeVar
-
 import scipy
+import graph_tool
 from graph_tool.topology import shortest_distance
-
 from numba import njit
 from numba.core import types
 
+# from pathos.multiprocessing import ProcessingPool as Pool
+from multiprocessing.pool import Pool
+# from pathos.multiprocessing import ProcessingPool as Pool
 
 @dataclass
 class HyperParams:
@@ -34,11 +36,26 @@ def sum_flows_from_tree(edge_to_ind, flows, source, targets, pred_map_arr, d):
             v = v_pred
     return flows
 
+def get_short_distances_and_pred_maps_parallel(net_df, source, targets, optim_params_t):
+    g = graph_tool.Graph(net_df.values, eprops=[('capacity', 'double'), ('fft', 'double')])
+    weights = g.ep.fft
+    weights.a = optim_params_t
+
+    short_distances, pred_map = shortest_distance(g, source=source, target=targets, weights=weights,
+                                                  pred_map=True)
+    return short_distances, pred_map.a
+
 
 class DualOracle:
-    def __init__(self, graph, l, w, params):
+    COUNT_PROCESSES = 10
+
+    def __init__(self, graph, l, w, params, net_df=None):
         self.params = params
+
+        # нужен только для параллелизации функции вычисления расстояний - потом можно будет граф вообще не передавать
+        self.net_df = net_df
         self.graph = graph
+
         edges_arr = graph.get_edges()
         self.edge_to_ind = numba.typed.Dict.empty(key_type=types.UniTuple(types.int64, 2),
                                                   value_type=numba.core.types.int64)
@@ -97,19 +114,19 @@ class DualOracle:
         flows_on_shortest = np.zeros(self.edges_num)
         for ind, source in enumerate(sources):
             pred_map = pred_maps[ind]
-            sum_flows_from_tree(self.edge_to_ind, flows_on_shortest, source, targets, np.array(pred_map.a), d)
+            sum_flows_from_tree(self.edge_to_ind, flows_on_shortest, source, targets, pred_map, d)
         return flows_on_shortest
 
-    def get_T_and_predmaps(self, g, optim_params, sources, targets):
+    def get_T_and_predmaps(self, optim_params, sources, targets):
         T = np.zeros((len(sources), len(targets)))
         pred_maps = []
 
         for source in sources:
             # CHECK ME - правильно ли сопоставляются веса ребер (от инициализации)
-            weights = g.ep.fft
+            weights = self.graph.ep.fft
             weights.a = optim_params.t
 
-            short_distances, pred_map = shortest_distance(g, source=source, target=targets, weights=weights,
+            short_distances, pred_map = shortest_distance(self.graph, source=source, target=targets, weights=weights,
                                                           pred_map=True)
             #             print("short_distances sum: ", short_distances.sum())
             pred_maps.append(pred_map)
@@ -118,6 +135,24 @@ class DualOracle:
                 T[source, j] = short_distances[j]
 
         return T, pred_maps
+
+    def get_T_and_predmaps_parallel(self, optim_params, sources, targets):
+        # g = graph_tool.Graph(self.net_df.values, eprops=[('capacity', 'double'), ('fft', 'double')])
+        T = np.zeros((len(sources), len(targets)))
+
+        with Pool(self.COUNT_PROCESSES) as pool:
+            multiple_dejkstra_results = pool.starmap(get_short_distances_and_pred_maps_parallel,
+                                                 [(self.net_df, source, targets, optim_params.t) for source in sources])
+
+        all_short_distances, all_pred_maps = zip(*multiple_dejkstra_results)
+
+        for source, short_distances in zip(sources, all_short_distances):
+            for j in range(len(short_distances)):
+                T[source, j] = short_distances[j]
+
+        return T, all_pred_maps
+
+
 
     def sigma_star(self, optim_params):
         # return self.f_bar * ((t - t_bar) / (t_bar * self.params.rho)) ** self.params.mu_pow * \

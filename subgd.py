@@ -13,10 +13,6 @@ from typing import List, Tuple
 from transport_problem import OptimParams, DualOracle, HyperParams
 
 
-# graph = None # TODO создавать граф
-# oracle = None # TODO - создать оракла
-# sources, targets = None, None    # определять sources и targets
-# oracle_stacker = OracleStacker(oracle, graph, sources, targets)
 
 @dataclass
 class USTM_Results:
@@ -74,9 +70,10 @@ class OracleStacker:
         self.optim_params.la = vars_block[self.T_LEN:self.T_LEN + self.LA_LEN]
         self.optim_params.mu = vars_block[self.T_LEN + self.LA_LEN:]
 
-        T, pred_maps = self.oracle.get_T_and_predmaps(self.graph, self.optim_params, self.sources, self.targets)
+        T, pred_maps = self.oracle.get_T_and_predmaps_parallel(self.optim_params, self.sources, self.targets)
 
         self.d = self.oracle.get_d(self.optim_params, T)
+        print(f"D (d) matrix shape: {self.d.shape}")
         flows_on_shortest = self.oracle.get_flows_on_shortest(self.sources, self.targets, self.d, pred_maps)
 
         grad_t = self.oracle.grad_dF_dt(self.optim_params, flows_on_shortest)
