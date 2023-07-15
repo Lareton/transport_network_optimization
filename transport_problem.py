@@ -102,12 +102,12 @@ class DualOracle:
 
     def grad_dF_dla(self, d):
         val = d.sum(axis=1) - self.l
-        print("grad dF dla: ", np.linalg.norm(val))
+        # print("grad dF dla: ", np.linalg.norm(val))
         return val
 
     def grad_dF_dmu(self, d):
         val = d.sum(axis=0) - self.w
-        print("grad dF dmu: ", np.linalg.norm(val))
+        # print("grad dF dmu: ", np.linalg.norm(val))
         return val
 
     def get_flows_on_shortest(self, sources, targets, d, pred_maps):
@@ -128,7 +128,6 @@ class DualOracle:
 
             short_distances, pred_map = shortest_distance(self.graph, source=source, target=targets, weights=weights,
                                                           pred_map=True)
-            #             print("short_distances sum: ", short_distances.sum())
             pred_maps.append(pred_map)
 
             for j in range(len(short_distances)):
@@ -140,7 +139,7 @@ class DualOracle:
         # g = graph_tool.Graph(self.net_df.values, eprops=[('capacity', 'double'), ('fft', 'double')])
         T = np.zeros((len(sources), len(targets)))
 
-        with Pool(self.COUNT_PROCESSES) as pool:
+        with Pool(processes=self.COUNT_PROCESSES) as pool:
             multiple_dejkstra_results = pool.starmap(get_short_distances_and_pred_maps_parallel,
                                                  [(self.net_df, source, targets, optim_params.t) for source in sources])
 

@@ -105,16 +105,13 @@ def ustm_mincost_mcf(
     results = USTM_Results()
 
     A_prev = 0.0
-    print(1)
 
     # t_start = np.zeros(oracle_stacker.parameters_vector_size)  # dual costs w
     t_start = oracle_stacker.get_init_vars_block()  # dual costs w
-    print(1)
 
     y_start = u_prev = t_prev = np.copy(t_start)
     assert y_start is u_prev  # acceptable at first initialization
 
-    print(1)
     grad_sum_prev = np.zeros(len(t_start))
 
     _, flows_averaged, grad_y, *_ = oracle_stacker(y_start)
@@ -150,9 +147,9 @@ def ustm_mincost_mcf(
 
             u = y_start - grad_sum
 
-            print("count values below t_bar in old t: ", (u[:oracle_stacker.T_LEN] < oracle_stacker.oracle.t_bar).sum())
+            # print("count values below t_bar in old t: ", (u[:oracle_stacker.T_LEN] < oracle_stacker.oracle.t_bar).sum())
             u[:oracle_stacker.T_LEN] = np.maximum(oracle_stacker.oracle.t_bar, u[:oracle_stacker.T_LEN])
-            print("count values below t_bar in new t: ", (u[:oracle_stacker.T_LEN] < oracle_stacker.oracle.t_bar).sum())
+            # print("count values below t_bar in new t: ", (u[:oracle_stacker.T_LEN] < oracle_stacker.oracle.t_bar).sum())
 
             # u = np.maximum(0, y_start - grad_sum)
 
@@ -162,11 +159,11 @@ def ustm_mincost_mcf(
 
             lvalue = func_t
 
-            print("norm (t - y): ", np.linalg.norm(t - y))
-            print("norm t: ", np.linalg.norm(oracle_stacker.optim_params.t))
-            print("norm la: ", np.linalg.norm(oracle_stacker.optim_params.la))
-            print("norm mu: ", np.linalg.norm(oracle_stacker.optim_params.mu))
-            print()
+            # print("norm (t - y): ", np.linalg.norm(t - y))
+            # print("norm t: ", np.linalg.norm(oracle_stacker.optim_params.t))
+            # print("norm la: ", np.linalg.norm(oracle_stacker.optim_params.la))
+            # print("norm mu: ", np.linalg.norm(oracle_stacker.optim_params.mu))
+            # print()
 
             rvalue = (func_y + np.dot(grad_y, t - y) + 0.5 * L_value * np.sum((t - y) ** 2) +
                       #                      0.5 * alpha / A * eps_abs )  # because, in theory, noise accumulates
@@ -197,7 +194,6 @@ def ustm_mincost_mcf(
 
         teta = alpha / A
         # TODO TODO
-        print("#######################################teta: ", teta)
         flows_averaged = flows_averaged * (1 - teta) + flows_y * teta
         #         flows_averaged_e = flows_averaged.sum(axis=(0, 1))
         d_avaraged = d_avaraged * (1 - teta) + oracle_stacker.d * teta
