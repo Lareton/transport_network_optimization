@@ -203,7 +203,8 @@ def ustm_mincost_mcf(
         results.history_dual_gap.append(oracle_stacker.oracle.prime(flows_averaged, d_avaraged) + func_t)
         results.history_A.append(A)
 
-        if stop_by_crit and results.history_dual_gap[-1] <= eps_abs:  # and cons_log[-1] <= eps_cons_abs:
+        if stop_by_crit and abs(results.history_dual_gap[-1]) <= eps_abs and results.history_la_mu_grad_norm[-1] <= eps_cons_abs:
+            print("EARLY STOPPING")
             break
 
     return results
