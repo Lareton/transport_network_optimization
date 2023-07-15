@@ -8,6 +8,7 @@ from scipy.special import logsumexp
 from oracle_utils import primal_f, d_i_j
 
 np.set_printoptions(suppress=True)
+eps = 1e-6
 
 
 @njit(parallel=True, fastmath=True)
@@ -144,9 +145,9 @@ class Sinkhorn:
             if k == self.max_iter:
                 raise RuntimeError("Max iter exceeded in Sinkhorn")
 
-        print(f"sink iters: {k}")
+#         print(f"sink iters: {k}")
 
-        return d_i_j(lambda_l_i, lambda_w_j, gammaT_ij), lambda_l_i, lambda_w_j
+        return d_i_j(lambda_l_i, lambda_w_j, gammaT_ij), lambda_l_i, lambda_w_j, k
 
     def _criteria(self, lambda_l_i: np.ndarray, lambda_w_j: np.ndarray, gammaT_ij: np.ndarray) -> bool:
         d_ij = d_i_j(lambda_l_i, lambda_w_j, gammaT_ij)
@@ -156,7 +157,7 @@ class Sinkhorn:
 
         dual_grad_norm = np.linalg.norm(dual_grad)  # equal to constraints violation norm
         inner_prod = -np.hstack((lambda_l_i, lambda_w_j)) @ dual_grad  # upper bound for f(x_k) - f(x^*)
-        print(f"Sinkhorn crit contraints norm: {dual_grad_norm}, dual gap: {inner_prod}, eps: {self.eps}")
-        print(f"primal val: {primal_f(d_ij, gammaT_ij)}")
+#         print(f"Sinkhorn crit contraints norm: {dual_grad_norm}, dual gap: {inner_prod}, eps: {self.eps}")
+#         print(f"primal val: {primal_f(d_ij, gammaT_ij)}")
 
         return dual_grad_norm < self.eps and inner_prod < self.eps
