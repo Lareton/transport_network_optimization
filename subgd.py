@@ -115,7 +115,9 @@ def ustm_mincost_mcf(
 
     grad_sum_prev = np.zeros(len(t_start))
 
-    _, flows_averaged, grad_y, *_ = oracle_stacker(y_start)
+    print("y_start: ", y_start)
+    func_t, flows_averaged, grad_y, grad_t, grad_la, grad_mu = oracle_stacker(y_start)
+    print("first exceeding the limits: ", np.linalg.norm(np.hstack([grad_la, grad_mu])))
     results.count_oracle_calls += 1
 
     d_avaraged = oracle_stacker.d.copy()
@@ -126,9 +128,17 @@ def ustm_mincost_mcf(
     inner_iters_num = 0
 
     print("start optimizing")
-    print("start init y is below t_bar count: ", (y_start[:oracle_stacker.T_LEN] < oracle_stacker.oracle.t_bar).sum())
-    print("start init u is below t_bar count: ", (u_prev[:oracle_stacker.T_LEN] < oracle_stacker.oracle.t_bar).sum())
-    print("start init t is below t_bar count: ", (t_prev[:oracle_stacker.T_LEN] < oracle_stacker.oracle.t_bar).sum())
+
+    results.history_count_calls.append(results.count_oracle_calls)
+    results.history_dual_values.append(func_t)
+    results.history_prime_values.append(oracle_stacker.oracle.prime(flows_averaged, d_avaraged))
+    norm_la_mu_grad = np.linalg.norm(np.hstack([grad_la, grad_mu]))
+    results.history_la_mu_grad_norm.append(norm_la_mu_grad)
+    results.custom_critery.append(min(abs(func_t), norm_la_mu_grad))
+    results.history_dual_gap.append(oracle_stacker.oracle.prime(flows_averaged, d_avaraged) + func_t)
+    results.history_A.append(0)
+
+    print("first dual_func: ", oracle_stacker.oracle.prime(flows_averaged, d_avaraged) + func_t )
 
     # for k in tqdm(range(max_iter)):
     for k in tqdm(range(max_iter)):
