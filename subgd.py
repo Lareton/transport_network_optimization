@@ -24,6 +24,7 @@ class USTM_Results:
     history_A: List[float] = field(default_factory=list)
     history_la_mu_grad_norm: List[float] = field(default_factory=list)
     history_count_calls: List[int] = field(default_factory=list)
+    custom_critery: List[int] = field(default_factory=list)
 
     d_avaraged: np.ndarray = None
     flows_averaged: np.ndarray = None
@@ -156,6 +157,7 @@ def ustm_mincost_mcf(
             t = (alpha * u + A_prev * t_prev) / A
 
             func_t, _, full_grad, grad_t, grad_la, grad_mu = oracle_stacker(t)
+            results.count_oracle_calls += 1
 
             lvalue = func_t
 
@@ -183,7 +185,9 @@ def ustm_mincost_mcf(
         results.history_count_calls.append(results.count_oracle_calls)
         results.history_dual_values.append(func_t)
         results.history_prime_values.append(oracle_stacker.oracle.prime(flows_averaged, d_avaraged))
-        results.history_la_mu_grad_norm.append(np.linalg.norm(np.hstack([grad_la, grad_mu])))
+        norm_la_mu_grad = np.linalg.norm(np.hstack([grad_la, grad_mu]))
+        results.history_la_mu_grad_norm.append(norm_la_mu_grad)
+        results.custom_critery.append(min(abs(func_t), norm_la_mu_grad))
 
         A_prev = A
         L_value /= 2
@@ -193,9 +197,7 @@ def ustm_mincost_mcf(
         grad_sum_prev = grad_sum
 
         teta = alpha / A
-        # TODO TODO
         flows_averaged = flows_averaged * (1 - teta) + flows_y * teta
-        #         flows_averaged_e = flows_averaged.sum(axis=(0, 1))
         d_avaraged = d_avaraged * (1 - teta) + oracle_stacker.d * teta
 
         results.d_avaraged = oracle_stacker.d
