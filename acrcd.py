@@ -128,7 +128,6 @@ def ACRCD_star(oracle_stacker: ACRCDOracleStacker, x1_0, x2_0, K, L1_init=5000, 
     flows_averaged = np.zeros(oracle_stacker.oracle.edges_num)
     corrs_averaged = np.zeros(oracle_stacker.oracle.zones_num)
     steps_sum = [0, 0]
-    t_grad_norms = []
 
     x1_list = [x1_0]
     x2_list = [x2_0]
@@ -167,6 +166,7 @@ def ACRCD_star(oracle_stacker: ACRCDOracleStacker, x1_0, x2_0, K, L1_init=5000, 
         for _ in range(100):
             if index_p == 0:
                 y1 = np.maximum(xs[index_p] - 1 / Ls[index_p] * sampled_gradient_x, oracle_stacker.oracle.t_bar)
+                # y1 = xs[index_p] - 1 / Ls[index_p] * sampled_gradient_x
                 y2 = x2
             else:
                 y2 = xs[index_p] - 1 / Ls[index_p] * sampled_gradient_x
@@ -200,6 +200,7 @@ def ACRCD_star(oracle_stacker: ACRCDOracleStacker, x1_0, x2_0, K, L1_init=5000, 
         else:
             corrs_averaged = (steps_sum[index_p] * corrs_averaged + (1 / Ls[index_p]) * d) / (steps_sum[index_p] + Ls[index_p])
             sum_ = np.sum(corrs_averaged)
+            d = d
 
         steps_sum[index_p] += (1 / Ls[index_p])
         L1, L2 = Ls
@@ -214,7 +215,7 @@ def ACRCD_star(oracle_stacker: ACRCDOracleStacker, x1_0, x2_0, K, L1_init=5000, 
 
         x1_list.append(x1)
         x2_list.append(x2)
-        log.history.append(oracle_stacker.oracle.prime(flows_averaged, corrs_averaged) - res_y)
+        log.history.append(oracle_stacker.oracle.prime(flows_averaged, corrs_averaged) + res_y)
         print(f"{log.t_calls=}")
         print(f"{log.la_mu_calls=}")
         print(f"{oracle_stacker.oracle.prime(flows_averaged, corrs_averaged)=}")
