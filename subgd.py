@@ -58,22 +58,22 @@ class OracleStacker:
         full_grad - градиент, stack[t_grad, la_grad, mu_grad]
         flows_averaged -  потоки при данных t (f)
         """
-        print("vars block grad: ", np.linalg.norm(vars_block))
+        # print("vars block grad: ", np.linalg.norm(vars_block))
         assert len(vars_block) == self.T_LEN + self.LA_LEN + self.MU_LEN
         self.optim_params.t = vars_block[:self.T_LEN]
         self.optim_params.t = np.maximum(self.optim_params.t, self.oracle.t_bar)
 
-        print("t in optim params grad: ", np.linalg.norm(self.optim_params.t), np.linalg.norm(vars_block[:self.T_LEN]))
-        print("la in optim params norm: ", np.linalg.norm(self.optim_params.la))
-        print("mu in optim params norm: ", np.linalg.norm(self.optim_params.mu))
+        # print("t in optim params grad: ", np.linalg.norm(self.optim_params.t), np.linalg.norm(vars_block[:self.T_LEN]))
+        # print("la in optim params norm: ", np.linalg.norm(self.optim_params.la))
+        # print("mu in optim params norm: ", np.linalg.norm(self.optim_params.mu))
 
         self.optim_params.la = vars_block[self.T_LEN:self.T_LEN + self.LA_LEN]
         self.optim_params.mu = vars_block[self.T_LEN + self.LA_LEN:]
 
-        T, pred_maps = self.oracle.get_T_and_predmaps_parallel(self.optim_params, self.sources, self.targets)
+        # T, pred_maps = self.oracle.get_T_and_predmaps_parallel(self.optim_params, self.sources, self.targets)
+        T, pred_maps = self.oracle.get_T_and_predmaps(self.optim_params, self.sources, self.targets)
 
         self.d = self.oracle.get_d(self.optim_params, T)
-        print(f"D (d) matrix shape: {self.d.shape}")
         flows_on_shortest = self.oracle.get_flows_on_shortest(self.sources, self.targets, self.d, pred_maps)
 
         grad_t = self.oracle.grad_dF_dt(self.optim_params, flows_on_shortest)

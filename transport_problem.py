@@ -114,6 +114,8 @@ class DualOracle:
         flows_on_shortest = np.zeros(self.edges_num)
         for ind, source in enumerate(sources):
             pred_map = pred_maps[ind]
+            if not isinstance(pred_map, np.ndarray):
+                pred_map = np.array(pred_map.a)
             sum_flows_from_tree(self.edge_to_ind, flows_on_shortest, source, targets, pred_map, d)
         return flows_on_shortest
 
