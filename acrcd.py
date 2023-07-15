@@ -77,6 +77,13 @@ class ACRCDOracleStacker:
         grad_la = self.oracle.grad_dF_dla(self.d)
         grad_mu = self.oracle.grad_dF_dmu(self.d)
         la_mu_grad = np.hstack([grad_la, grad_mu])
+        debug = np.linalg.norm(la_mu_grad)
+        try:
+            debug2 = log.la_mu_grad_norms[-1]
+            if abs(log.la_mu_grad_norms[-1] - np.linalg.norm(la_mu_grad)) > 0.5:
+                ...
+        except IndexError:
+            pass
         log.la_mu_grad_norms.append(np.linalg.norm(la_mu_grad))
         dual_value = self.oracle.calc_F(self.optim_params, T)
         # dual_value = self.oracle.calc_F_via_d(self.optim_params, self.d,T)
@@ -123,7 +130,7 @@ class ACRCDOracleStacker:
 # ACRCD
 # y (paper) = q(code_)
 def ACRCD_star(oracle_stacker: ACRCDOracleStacker, x1_0, x2_0, K, L1_init=5000, L2_init=5000):
-    ADAPTIVE_DELTA = 1e-5
+    ADAPTIVE_DELTA = 1e-1
 
     flows_averaged = np.zeros(oracle_stacker.oracle.edges_num)
     corrs_averaged = np.zeros(oracle_stacker.oracle.zones_num)
@@ -193,29 +200,27 @@ def ACRCD_star(oracle_stacker: ACRCDOracleStacker, x1_0, x2_0, K, L1_init=5000, 
             Ls[index_p] *= 2
 
         if index_p == 0:
-            flows_averaged = (steps_sum[index_p] * flows_averaged + (1 / Ls[index_p]) * flows) / (steps_sum[index_p] + Ls[index_p])
-            sum_ = np.sum(flows_averaged)
-            flows = flows
-
+            flows_averaged = (steps_sum[index_p] * flows_averaged + (1 / Ls[index_p]) * flows) / (
+                        steps_sum[index_p] + 1 / Ls[index_p])
         else:
-            corrs_averaged = (steps_sum[index_p] * corrs_averaged + (1 / Ls[index_p]) * d) / (steps_sum[index_p] + Ls[index_p])
-            sum_ = np.sum(corrs_averaged)
-            d = d
+            corrs_averaged = (steps_sum[index_p] * corrs_averaged + (1 / Ls[index_p]) * d) / (
+                        steps_sum[index_p] + 1 / Ls[index_p])
 
         steps_sum[index_p] += (1 / Ls[index_p])
         L1, L2 = Ls
         n_ = L1 ** beta + L2 ** beta
-        alpha = (i + 2) / (2 * n_ ** 2)
-
-        if index_p == 0:
-            z1 = np.maximum(z1 - (1 / L1) * alpha * n_ * sampled_gradient_x, oracle_stacker.oracle.t_bar)
-
-        if index_p == 1:
-            z2 = z2 - (1 / L2) * alpha * n_ * sampled_gradient_x
+        # alpha = (i + 2) / (2 * n_ ** 2)
+        # alpha = (i + 2) / (2 * n_ ** 2)
+        #
+        # if index_p == 0:
+        #     z1 = np.maximum(z1 - (1 / L1) * alpha * n_ * sampled_gradient_x, oracle_stacker.oracle.t_bar)
+        #
+        # if index_p == 1:
+        #     z2 = z2 - (1 / L2) * alpha * n_ * sampled_gradient_x
 
         x1_list.append(x1)
         x2_list.append(x2)
-        log.history.append(oracle_stacker.oracle.prime(flows_averaged, corrs_averaged) + res_y)
+        log.history.append(abs(oracle_stacker.oracle.prime(flows_averaged, corrs_averaged) + res_y))
         print(f"{log.t_calls=}")
         print(f"{log.la_mu_calls=}")
         print(f"{oracle_stacker.oracle.prime(flows_averaged, corrs_averaged)=}")
