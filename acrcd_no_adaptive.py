@@ -106,7 +106,7 @@ class ACRCDOracleStacker:
 
 # ACRCD
 # y (paper) = q(code_)
-def ACRCD_star(oracle_stacker: ACRCDOracleStacker, x1_0, x2_0, K, L1_init=100000, L2_init=100000):
+def ACRCD_star(oracle_stacker: ACRCDOracleStacker, x1_0, x2_0, K, L1_init=1e-1, L2_init=1e-1):
     global log
     results = AlgoResults()
 
@@ -177,10 +177,6 @@ def ACRCD_star(oracle_stacker: ACRCDOracleStacker, x1_0, x2_0, K, L1_init=100000
         x2_list.append(x2)
         if results.t_calls > 0 and results.la_mu_calls > 0:
             results.history_dual_gap.append(abs(oracle_stacker.oracle.prime(flows_averaged, corrs_averaged) + res_x))
-            results.history_t_calls.append(results.t_calls)
-            results.history_la_mu_calls.append(results.la_mu_calls)
-        else:
-            results.history_dual_gap.append(13)
             results.history_t_calls.append(results.t_calls)
             results.history_la_mu_calls.append(results.la_mu_calls)
 
