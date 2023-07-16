@@ -12,6 +12,7 @@ from oracle_utils import AlgoResults
 
 from transport_problem import OptimParams, DualOracle, HyperParams
 
+
 class OracleSinkhornStacker:
     def __init__(self, oracle: DualOracle, graph, sources, targets, l, w, params):
         self.k = 0
@@ -31,7 +32,7 @@ class OracleSinkhornStacker:
         self.la = np.zeros(oracle.zones_num)
         self.mu = np.zeros(oracle.zones_num)
         self.optim_params = OptimParams(self.t, self.la, self.mu)
-        
+
         self.sinkhorn = Sinkhorn(l, w, max_iter=100000, eps=1e-3)
         self.params = params
 
@@ -52,7 +53,9 @@ class OracleSinkhornStacker:
         T, pred_maps = self.oracle.get_T_and_predmaps_parallel(self.optim_params, self.sources, self.targets)
         self.k += 1
 
-        self.d, self.optim_params.la, self.optim_params.mu, k = self.sinkhorn.run(T / self.params.gamma, self.optim_params.la, self.optim_params.mu)
+        self.d, self.optim_params.la, self.optim_params.mu, k = self.sinkhorn.run(T / self.params.gamma,
+                                                                                  self.optim_params.la,
+                                                                                  self.optim_params.mu)
         flows_on_shortest = self.oracle.get_flows_on_shortest(self.sources, self.targets, self.d, pred_maps)
         grad_t = self.oracle.grad_dF_dt(self.optim_params, flows_on_shortest)
         grad_la = self.oracle.grad_dF_dla(self.d)
@@ -84,7 +87,7 @@ def ustm_sinkhorn_mincost_mcf(
     history = AlgoResults()
 
     A_prev = 0.0
-    
+
     t_start = oracle_stacker.get_init_vars_block()
 
     y_start = u_prev = t_prev = np.copy(t_start)
@@ -139,7 +142,6 @@ def ustm_sinkhorn_mincost_mcf(
 
             assert L_value < np.inf
 
-            
         primal = oracle_stacker.oracle.prime(flows_averaged, d_avaraged)
 
         A_prev = A
@@ -153,13 +155,14 @@ def ustm_sinkhorn_mincost_mcf(
         flows_averaged = flows_averaged * (1 - teta) + flows_y * teta
         d_avaraged = d_avaraged * (1 - teta) + oracle_stacker.d * teta
 
-
         dgap = oracle_stacker.oracle.prime(flows_averaged, d_avaraged) + func_t
         history.history_count_calls.append(sinkhorn_iters_cnt)
         history.history_dual_gap.append(dgap)
         history.history_la_mu_grad_norm.append(grad)
 
-        if stop_by_crit and history.history_dual_gap[-1] <= eps_abs and history.history_la_mu_grad_norm[-1] <= eps_cons_abs:
+        if stop_by_crit and history.history_dual_gap[-1] <= eps_abs and history.history_la_mu_grad_norm[
+            -1] <= eps_cons_abs:
+            print("STOP BY CRIT!!!")
             break
 
     return t, history
