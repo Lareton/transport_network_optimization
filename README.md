@@ -15,10 +15,8 @@ Ran- domized Coordinate Descent – ACRCD) - оптимизация происх
   Для того чтобы оценивать сходимость методов было выбрано два критерия: зазор двойственности
   (разность между значением прямой и двойственной функции) и норма градиента по переменным λ и μ.
   Итоговая метрика объединяет оба критерия:
-
   ```python
-    
-
+    # results: AlgoResults from algorithms
     x = results.history_count_calls
     dual_gap = results.history_dual_gap
     dual_gap_clipped = np.maximum(0, dual_gap)
@@ -27,9 +25,9 @@ Ran- domized Coordinate Descent – ACRCD) - оптимизация происх
 
     # (x, metric) - result plot
   ```
-  которая отражает текущее превышение ограничений, накладываемых l и w.
-  Данные метрики фиксировались относительно текущего кол-ва 
-  оракульных вызовов.
+
+  Метрики фиксировались относительно текущего кол-ва оракульных вызовов.
+
 Использование перечисленных алгоритмов на реальном графе и результаты экспериментов находятся в файлах:
 - [test_USTM.ipynb](test_USTM.ipynb)
 - [test_USTM_Sinkhorn.ipynb](test_USTM.ipynb)
