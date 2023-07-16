@@ -1,13 +1,10 @@
 import sys
-
 from tqdm import tqdm
-
-from transport_problem import DualOracle, OptimParams
-
 import numpy as np
-
 from dataclasses import dataclass, field
 
+from transport_problem import DualOracle, OptimParams
+from oracle_utils import AlgoResults
 
 @dataclass
 class Log:
@@ -17,8 +14,6 @@ class Log:
     t_calls = 0
     t_grad_norms: list = field(default_factory=list)
 
-
-log = Log()
 
 
 class ACRCDOracleStacker:
@@ -53,14 +48,11 @@ class ACRCDOracleStacker:
         grad_t = self.oracle.grad_dF_dt(self.optim_params, flows_on_shortest)
 
         t_grad = np.hstack([grad_t])
-        log.t_grad_norms.append(np.linalg.norm(t_grad))
         dual_value = self.oracle.calc_F(self.optim_params, T)
         self.flows = flows_on_shortest.copy()
-        log.t_calls += 1
-        print(f"{dual_value=}")
+
+
         if np.isnan(dual_value):
-            print(self.optim_params)
-            print(T.shape)
             dual_value = self.oracle.calc_F(self.optim_params, T)
             sys.exit()
         return dual_value, t_grad, self.flows
@@ -77,22 +69,10 @@ class ACRCDOracleStacker:
         grad_la = self.oracle.grad_dF_dla(self.d)
         grad_mu = self.oracle.grad_dF_dmu(self.d)
         la_mu_grad = np.hstack([grad_la, grad_mu])
-        debug = np.linalg.norm(la_mu_grad)
-        try:
-            debug2 = log.la_mu_grad_norms[-1]
-            if abs(log.la_mu_grad_norms[-1] - np.linalg.norm(la_mu_grad)) > 0.5:
-                ...
-        except IndexError:
-            pass
-        log.la_mu_grad_norms.append(np.linalg.norm(la_mu_grad))
+
         dual_value = self.oracle.calc_F(self.optim_params, T)
-        # dual_value = self.oracle.calc_F_via_d(self.optim_params, self.d,T)
-        log.la_mu_calls += 1
         if np.isnan(dual_value):
-            print(self.optim_params)
-            print(T.shape)
             sys.exit()
-        print(f"{dual_value=}")
         return dual_value, la_mu_grad, self.d
 
     def __call__(self, t_block, la_mu_block, *args, **kwargs):
@@ -110,14 +90,11 @@ class ACRCDOracleStacker:
         grad_la = self.oracle.grad_dF_dla(self.d)
         grad_mu = self.oracle.grad_dF_dmu(self.d)
 
-        #         print(grad_t.shape, grad_la.shape, grad_mu.shape)
         la_mu_grad = np.hstack([grad_la, grad_mu])
-        print(la_mu_grad)
         t_grad = np.hstack([grad_t])
         dual_value = self.oracle.calc_F(self.optim_params, T)
 
         self.flows = grad_t.copy()
-        print('dual_value', dual_value)
         return t_grad, la_mu_grad, dual_value, self.flows
 
     def get_prime_value(self):
@@ -131,7 +108,7 @@ class ACRCDOracleStacker:
 # y (paper) = q(code_)
 def ACRCD_star(oracle_stacker: ACRCDOracleStacker, x1_0, x2_0, K, L1_init=100000, L2_init=100000):
     global log
-    log = Log()
+    results = AlgoResults()
 
     flows_averaged = np.zeros(oracle_stacker.oracle.edges_num)
     corrs_averaged = np.zeros(oracle_stacker.oracle.zones_num)
@@ -148,7 +125,8 @@ def ACRCD_star(oracle_stacker: ACRCDOracleStacker, x1_0, x2_0, K, L1_init=100000
     beta = 1 / 2
 
     res_x, sampled_gradient_x, flows = oracle_stacker.la_mu_step(x2_0)
-    print("######### ", np.linalg.norm(sampled_gradient_x))
+    results.history_la_mu_grad_norm.append(np.linalg.norm(sampled_gradient_x))
+    results.la_mu_calls += 1
 
     for i in tqdm(range(K)):
         tau = 2 / (i + 2)
@@ -156,15 +134,20 @@ def ACRCD_star(oracle_stacker: ACRCDOracleStacker, x1_0, x2_0, K, L1_init=100000
         x2 = tau * z2 + (1 - tau) * y2
 
         n_ = L1 ** beta + L2 ** beta
-        print(f"{L1=}")
-        print(f"{L2=}")
         index_p = np.random.choice([0, 1], p=[L1 ** beta / n_,
                                               L2 ** beta / n_])
 
         if index_p == 0:
             res_x, sampled_gradient_x, flows = oracle_stacker.t_step(x1)  # moved out of the inner loop
+
+            results.t_calls += 1
+
         elif index_p == 1:
             res_x, sampled_gradient_x, d = oracle_stacker.la_mu_step(x2)  # moved out of the inner loop
+
+            results.history_la_mu_grad_norm.append(np.linalg.norm(sampled_gradient_x))
+            results.la_mu_calls += 1
+
 
         Ls = [L1, L2]
 
@@ -192,11 +175,13 @@ def ACRCD_star(oracle_stacker: ACRCDOracleStacker, x1_0, x2_0, K, L1_init=100000
 
         x1_list.append(x1)
         x2_list.append(x2)
-        if log.t_calls > 0 and log.la_mu_calls > 0:
-            debug = abs(oracle_stacker.oracle.prime(flows_averaged, corrs_averaged) + res_x)
-            log.history.append(abs(oracle_stacker.oracle.prime(flows_averaged, corrs_averaged) + res_x))
-        print(f"{log.t_calls=}")
-        print(f"{log.la_mu_calls=}")
-        print(f"{oracle_stacker.oracle.prime(flows_averaged, corrs_averaged)=}")
+        if results.t_calls > 0 and results.la_mu_calls > 0:
+            results.history_dual_gap.append(abs(oracle_stacker.oracle.prime(flows_averaged, corrs_averaged) + res_x))
+            results.history_t_calls.append(results.t_calls)
+            results.history_la_mu_calls.append(results.la_mu_calls)
+        else:
+            results.history_dual_gap.append(13)
+            results.history_t_calls.append(results.t_calls)
+            results.history_la_mu_calls.append(results.la_mu_calls)
 
-    return log.t_calls, log.la_mu_calls, log.history, log.la_mu_grad_norms, log.t_grad_norms, x1_list, x2_list, [L1, L2]
+    return results

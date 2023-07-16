@@ -39,3 +39,8 @@ class AlgoResults:
     t_avaraged: np.ndarray = None
     count_oracle_calls: int = 0
 
+    t_calls: int = 0
+    la_mu_calls: int = 0
+
+    history_la_mu_calls: List[int] = field(default_factory=list)
+    history_t_calls: List[int] = field(default_factory=list)
