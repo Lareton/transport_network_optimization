@@ -129,7 +129,7 @@ class ACRCDOracleStacker:
 
 # ACRCD
 # y (paper) = q(code_)
-def ACRCD_star(oracle_stacker: ACRCDOracleStacker, x1_0, x2_0, K, L1_init=5000, L2_init=5000):
+def ACRCD_star(oracle_stacker: ACRCDOracleStacker, x1_0, x2_0, K, L1_init=100000, L2_init=100000):
 
     flows_averaged = np.zeros(oracle_stacker.oracle.edges_num)
     corrs_averaged = np.zeros(oracle_stacker.oracle.zones_num)
@@ -165,7 +165,6 @@ def ACRCD_star(oracle_stacker: ACRCDOracleStacker, x1_0, x2_0, K, L1_init=5000, 
             res_x, sampled_gradient_x, d = oracle_stacker.la_mu_step(x2)  # moved out of the inner loop
 
         Ls = [L1, L2]
-        Ls[index_p] /= 2
 
         if index_p == 0:
             flows_averaged = (steps_sum[index_p] * flows_averaged + (1 / Ls[index_p]) * flows) / (
@@ -173,8 +172,10 @@ def ACRCD_star(oracle_stacker: ACRCDOracleStacker, x1_0, x2_0, K, L1_init=5000, 
         else:
             corrs_averaged = (steps_sum[index_p] * corrs_averaged + (1 / Ls[index_p]) * d) / (
                     steps_sum[index_p] + 1 / Ls[index_p])
-        #
+
         steps_sum[index_p] += (1 / Ls[index_p])
+
+        L1, L2 = Ls
 
         n_ = L1 ** beta + L2 ** beta
         alpha = (i + 2) / (2 * n_ ** 2)
