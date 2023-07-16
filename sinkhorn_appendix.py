@@ -67,7 +67,7 @@ class OracleSinkhornStacker:
 
         self.flows = self.oracle.get_flows_on_shortest(self.sources, self.targets, self.d, pred_maps)
 
-        return dual_value, full_grad, flows_on_shortest, grad
+        return dual_value, full_grad, flows_on_shortest, grad, k
 
     def get_prime_value(self):
         return self.oracle.prime(self.flows, self.d)
@@ -85,6 +85,7 @@ def ustm_sinkhorn_mincost_mcf(
         stop_by_crit: bool = True,
 ) -> tuple:
     history = AlgoResults()
+    sinkhistory = AlgoResults()
 
     A_prev = 0.0
 
@@ -95,11 +96,15 @@ def ustm_sinkhorn_mincost_mcf(
 
     grad_sum_prev = np.zeros(len(t_start))
 
-    zero_dgap, grad_y, flows_averaged, grad = oracle_stacker(y_start)
-    sinkhorn_iters_cnt = 0
-    history.history_count_calls.append(sinkhorn_iters_cnt)
+    zero_dgap, grad_y, flows_averaged, grad, sinkhorn_cnt = oracle_stacker(y_start)
+    sinkhorn_iters_cnt = sinkhorn_cnt
+    oracle_calls = 1
+    history.history_count_calls.append(oracle_calls)
     history.history_dual_gap.append(zero_dgap)
     history.history_la_mu_grad_norm.append(grad)
+    sinkhistory.history_count_calls.append(sinkhorn_iters_cnt)
+    sinkhistory.history_dual_gap.append(zero_dgap)
+    sinkhistory.history_la_mu_grad_norm.append(grad)
     print(zero_dgap, grad)
     d_avaraged = oracle_stacker.d.copy()
 
@@ -117,8 +122,9 @@ def ustm_sinkhorn_mincost_mcf(
             A = A_prev + alpha
 
             y = (alpha * u_prev + A_prev * t_prev) / A
-            func_y, grad_y, flows_y, grad = oracle_stacker(y)
-            sinkhorn_iters_cnt += 1
+            func_y, grad_y, flows_y, grad, sinkhorn_cnt = oracle_stacker(y)
+            sinkhorn_iters_cnt += sinkhorn_cnt
+            oracle_calls += 1
 
             grad_sum = grad_sum_prev + alpha * grad_y
 
@@ -126,8 +132,9 @@ def ustm_sinkhorn_mincost_mcf(
             u[:oracle_stacker.T_LEN] = np.maximum(oracle_stacker.oracle.t_bar, u[:oracle_stacker.T_LEN])
 
             t = (alpha * u + A_prev * t_prev) / A
-            func_t, _, _, grad = oracle_stacker(t)
-            sinkhorn_iters_cnt += 1
+            func_t, _, _, grad, sinkhorn_cnt = oracle_stacker(t)
+            sinkhorn_iters_cnt += sinkhorn_cnt
+            oracle_calls += 1
 
             lvalue = func_t
 
@@ -156,13 +163,16 @@ def ustm_sinkhorn_mincost_mcf(
         d_avaraged = d_avaraged * (1 - teta) + oracle_stacker.d * teta
 
         dgap = oracle_stacker.oracle.prime(flows_averaged, d_avaraged) + func_t
-        history.history_count_calls.append(sinkhorn_iters_cnt)
+        history.history_count_calls.append(oracle_calls)
         history.history_dual_gap.append(dgap)
         history.history_la_mu_grad_norm.append(grad)
+        sinkhistory.history_count_calls.append(sinkhorn_iters_cnt)
+        sinkhistory.history_dual_gap.append(dgap)
+        sinkhistory.history_la_mu_grad_norm.append(grad)
 
         if stop_by_crit and history.history_dual_gap[-1] <= eps_abs and history.history_la_mu_grad_norm[
             -1] <= eps_cons_abs:
             print("STOP BY CRIT!!!")
             break
 
-    return t, history
+    return t, history, sinkhistory
