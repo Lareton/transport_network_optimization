@@ -24,7 +24,7 @@ def dual_gap(d_ij, lambda_l_i, lambda_w_j, gammaT_ij, L_i, W_j):
 
 
 @dataclass
-class USTM_Results:
+class AlgoResults:
     history_la_grad_norm: List[float] = field(default_factory=list)
     history_mu_grad_norm: List[float] = field(default_factory=list)
     history_dual_values: List[float] = field(default_factory=list)

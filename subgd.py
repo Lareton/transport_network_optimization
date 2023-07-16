@@ -10,7 +10,7 @@ from tqdm import tqdm
 from typing import List, Tuple
 
 from transport_problem import OptimParams, DualOracle, HyperParams
-from oracle_utils import USTM_Results
+from oracle_utils import AlgoResults
 
 
 
@@ -85,8 +85,8 @@ def ustm_mincost_mcf(
         eps_cons_abs: float,
         max_iter: int = 10000,
         stop_by_crit: bool = True,
-) -> USTM_Results:
-    results = USTM_Results()
+) -> AlgoResults:
+    results = AlgoResults()
 
     A_prev = 0.0
 
