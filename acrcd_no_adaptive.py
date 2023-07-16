@@ -190,8 +190,9 @@ def ACRCD_star(oracle_stacker: ACRCDOracleStacker, x1_0, x2_0, K, L1_init=100000
 
         x1_list.append(x1)
         x2_list.append(x2)
-        debug = abs(oracle_stacker.oracle.prime(flows_averaged, corrs_averaged) + res_x)
-        log.history.append(abs(oracle_stacker.oracle.prime(flows_averaged, corrs_averaged) + res_x))
+        if log.t_calls > 0 and log.la_mu_calls > 0:
+            debug = abs(oracle_stacker.oracle.prime(flows_averaged, corrs_averaged) + res_x)
+            log.history.append(abs(oracle_stacker.oracle.prime(flows_averaged, corrs_averaged) + res_x))
         print(f"{log.t_calls=}")
         print(f"{log.la_mu_calls=}")
         print(f"{oracle_stacker.oracle.prime(flows_averaged, corrs_averaged)=}")
