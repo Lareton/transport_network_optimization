@@ -130,7 +130,6 @@ class ACRCDOracleStacker:
 # ACRCD
 # y (paper) = q(code_)
 def ACRCD_star(oracle_stacker: ACRCDOracleStacker, x1_0, x2_0, K, L1_init=5000, L2_init=5000):
-    ADAPTIVE_DELTA = 1e-2
 
     flows_averaged = np.zeros(oracle_stacker.oracle.edges_num)
     corrs_averaged = np.zeros(oracle_stacker.oracle.zones_num)
@@ -141,9 +140,6 @@ def ACRCD_star(oracle_stacker: ACRCDOracleStacker, x1_0, x2_0, K, L1_init=5000, 
 
     z1 = y1 = x1_0
     z2 = y2 = x2_0
-
-    z1_ = 0
-    z2_ = 0
 
     L1 = L1_init
     L2 = L2_init
@@ -171,38 +167,6 @@ def ACRCD_star(oracle_stacker: ACRCDOracleStacker, x1_0, x2_0, K, L1_init=5000, 
         Ls = [L1, L2]
         Ls[index_p] /= 2
 
-        # ADAPTIVE
-        xs = [x1, x2]
-        # sampled_gradient_x = _x[0]
-        # for _ in range(100):
-        #     if index_p == 0:
-        #         y1 = np.maximum(xs[index_p] - 1 / Ls[index_p] * sampled_gradient_x, oracle_stacker.oracle.t_bar)
-        #         # y1 = xs[index_p] - 1 / Ls[index_p] * sampled_gradient_x
-        #         y2 = x2
-        #     else:
-        #         y2 = xs[index_p] - 1 / Ls[index_p] * sampled_gradient_x
-        #         y1 = x1
-        #
-        #     if index_p == 0:
-        #         res_y, _y, flows = oracle_stacker.t_step(y1)
-        #         if np.isnan(res_y):
-        #             sys.exit()
-        #         print(f"{res_y=}")
-        #     else:
-        #         res_y, _y, d = oracle_stacker.la_mu_step(y2)
-        #         print(f"{res_y=}")
-        #
-        #     inequal_is_true = 1 / (2 * Ls[index_p]) * np.linalg.norm(
-        #         sampled_gradient_x) ** 2 <= res_x - res_y + ADAPTIVE_DELTA
-        #     print("1 ", 1 / (2 * Ls[index_p]) * np.linalg.norm(
-        #         sampled_gradient_x) ** 2)
-        #
-        #     print("2 ", res_x - res_y + ADAPTIVE_DELTA)
-        #     print(f"{inequal_is_true=}")
-        #     if inequal_is_true:
-        #         break
-        #     Ls[index_p] *= 2
-        #
         if index_p == 0:
             flows_averaged = (steps_sum[index_p] * flows_averaged + (1 / Ls[index_p]) * flows) / (
                     steps_sum[index_p] + 1 / Ls[index_p])
@@ -211,35 +175,15 @@ def ACRCD_star(oracle_stacker: ACRCDOracleStacker, x1_0, x2_0, K, L1_init=5000, 
                     steps_sum[index_p] + 1 / Ls[index_p])
         #
         steps_sum[index_p] += (1 / Ls[index_p])
-        # L1, L2 = Ls
-
-        # inequal_is_true = 1 / (2 * Ls[index_p]) * np.linalg.norm(
-        #     sampled_gradient_x) ** 2 <= z1_ - z2_ + ADAPTIVE_DELTA
-
-        # if inequal_is_true:
-        #     n_ = L1 ** beta + L2 ** beta
-        #     alpha = (i + 2) / (2 * n_ ** 2)
-        #
-        #     if index_p == 0:
-        #         z1 = np.maximum(z1 - (1 / L1) * alpha * n_ * sampled_gradient_x, oracle_stacker.oracle.t_bar)
-        #         z1_ = z1
-        #
-        #     if index_p == 1:
-        #         z2 = z2 - (1 / L2) * alpha * n_ * sampled_gradient_x
-        #         z2_ = z2
-        # else:
-        #     Ls[index_p] *= 2
 
         n_ = L1 ** beta + L2 ** beta
         alpha = (i + 2) / (2 * n_ ** 2)
 
         if index_p == 0:
             z1 = np.maximum(z1 - (1 / L1) * alpha * n_ * sampled_gradient_x, oracle_stacker.oracle.t_bar)
-            z1_ = z1
 
         if index_p == 1:
             z2 = z2 - (1 / L2) * alpha * n_ * sampled_gradient_x
-            z2_ = z2
 
         # z1, z2 = y1, y2
 
