@@ -116,7 +116,6 @@ def ustm_mincost_mcf(
     results.history_prime_values.append(oracle_stacker.oracle.prime(flows_averaged, d_avaraged))
     norm_la_mu_grad = np.linalg.norm(np.hstack([grad_la, grad_mu]))
     results.history_la_mu_grad_norm.append(norm_la_mu_grad)
-    results.custom_critery.append(min(abs(func_t), norm_la_mu_grad))
     results.history_dual_gap.append(oracle_stacker.oracle.prime(flows_averaged, d_avaraged) + func_t)
     results.history_A.append(0)
 
@@ -179,7 +178,6 @@ def ustm_mincost_mcf(
         results.history_prime_values.append(oracle_stacker.oracle.prime(flows_averaged, d_avaraged))
         norm_la_mu_grad = np.linalg.norm(np.hstack([grad_la, grad_mu]))
         results.history_la_mu_grad_norm.append(norm_la_mu_grad)
-        results.custom_critery.append(min(abs(func_t), norm_la_mu_grad))
 
         A_prev = A
         L_value /= 2
