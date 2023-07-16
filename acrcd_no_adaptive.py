@@ -6,16 +6,16 @@ from transport_problem import DualOracle, OptimParams
 
 import numpy as np
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 @dataclass
 class Log:
-    history = []
-    la_mu_grad_norms = []
+    history: list = field(default_factory=list)
+    la_mu_grad_norms: list = field(default_factory=list)
     la_mu_calls = 0
     t_calls = 0
-    t_grad_norms = []
+    t_grad_norms: list = field(default_factory=list)
 
 
 log = Log()
@@ -130,6 +130,8 @@ class ACRCDOracleStacker:
 # ACRCD
 # y (paper) = q(code_)
 def ACRCD_star(oracle_stacker: ACRCDOracleStacker, x1_0, x2_0, K, L1_init=100000, L2_init=100000):
+    global log
+    log = Log()
 
     flows_averaged = np.zeros(oracle_stacker.oracle.edges_num)
     corrs_averaged = np.zeros(oracle_stacker.oracle.zones_num)
