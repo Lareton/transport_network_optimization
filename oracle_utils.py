@@ -33,7 +33,6 @@ class AlgoResults:
     history_A: List[float] = field(default_factory=list)
     history_la_mu_grad_norm: List[float] = field(default_factory=list)
     history_count_calls: List[int] = field(default_factory=list)
-    custom_critery: List[int] = field(default_factory=list)
 
     d_avaraged: np.ndarray = None
     flows_averaged: np.ndarray = None
