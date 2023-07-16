@@ -3,7 +3,6 @@ import graph_tool as gt
 from graph_tool.topology import shortest_distance
 import numpy as np
 import typing
-from dataclasses import dataclass, field
 
 import numba
 from numba.core import types
@@ -11,25 +10,9 @@ from tqdm import tqdm
 from typing import List, Tuple
 
 from transport_problem import OptimParams, DualOracle, HyperParams
+from oracle_utils import USTM_Results
 
 
-
-@dataclass
-class USTM_Results:
-    history_la_grad_norm: List[float] = field(default_factory=list)
-    history_mu_grad_norm: List[float] = field(default_factory=list)
-    history_dual_values: List[float] = field(default_factory=list)
-    history_prime_values: List[float] = field(default_factory=list)
-    history_dual_gap: List[float] = field(default_factory=list)
-    history_A: List[float] = field(default_factory=list)
-    history_la_mu_grad_norm: List[float] = field(default_factory=list)
-    history_count_calls: List[int] = field(default_factory=list)
-    custom_critery: List[int] = field(default_factory=list)
-
-    d_avaraged: np.ndarray = None
-    flows_averaged: np.ndarray = None
-    t_avaraged: np.ndarray = None
-    count_oracle_calls: int = 0
 
 
 class OracleStacker:
@@ -115,7 +98,6 @@ def ustm_mincost_mcf(
 
     grad_sum_prev = np.zeros(len(t_start))
 
-    print("y_start: ", y_start)
     func_t, flows_averaged, grad_y, grad_t, grad_la, grad_mu = oracle_stacker(y_start)
     print("first exceeding the limits: ", np.linalg.norm(np.hstack([grad_la, grad_mu])))
     results.count_oracle_calls += 1
