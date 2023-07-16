@@ -6,16 +6,16 @@ from transport_problem import DualOracle, OptimParams
 
 import numpy as np
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 @dataclass
 class Log:
-    history = []
-    la_mu_grad_norms = []
+    history: list = field(default_factory=list)
+    la_mu_grad_norms: list = field(default_factory=list)
     la_mu_calls = 0
     t_calls = 0
-    t_grad_norms = []
+    t_grad_norms: list = field(default_factory=list)
 
 
 log = Log()
@@ -130,12 +130,13 @@ class ACRCDOracleStacker:
 # ACRCD
 # y (paper) = q(code_)
 def ACRCD_star(oracle_stacker: ACRCDOracleStacker, x1_0, x2_0, K, L1_init=5000, L2_init=5000):
-    ADAPTIVE_DELTA = 1e-3
+    global log
+    log = Log()
 
     flows_averaged = np.zeros(oracle_stacker.oracle.edges_num)
     corrs_averaged = np.zeros(oracle_stacker.oracle.zones_num)
     steps_sum = [0, 0]
-
+    ADAPTIVE_DELTA = 1e-3
     x1_list = [x1_0]
     x2_list = [x2_0]
 
@@ -148,11 +149,12 @@ def ACRCD_star(oracle_stacker: ACRCDOracleStacker, x1_0, x2_0, K, L1_init=5000, 
     L1 = L1_init
     L2 = L2_init
     beta = 1 / 2
-    
+
     res_x, sampled_gradient_x, flows = oracle_stacker.la_mu_step(x2_0)
     print("######### ", np.linalg.norm(sampled_gradient_x))
 
     for i in tqdm(range(K)):
+        ADAPTIVE_DELTA = ADAPTIVE_DELTA / (i + 1)
         tau = 2 / (i + 2)
         x1 = tau * z1 + (1 - tau) * y1
         x2 = tau * z2 + (1 - tau) * y2
@@ -205,41 +207,38 @@ def ACRCD_star(oracle_stacker: ACRCDOracleStacker, x1_0, x2_0, K, L1_init=5000, 
 
         if index_p == 0:
             flows_averaged = (steps_sum[index_p] * flows_averaged + (1 / Ls[index_p]) * flows) / (
-                        steps_sum[index_p] + 1 / Ls[index_p])
+                    steps_sum[index_p] + 1 / Ls[index_p])
         else:
             corrs_averaged = (steps_sum[index_p] * corrs_averaged + (1 / Ls[index_p]) * d) / (
-                        steps_sum[index_p] + 1 / Ls[index_p])
+                    steps_sum[index_p] + 1 / Ls[index_p])
 
         steps_sum[index_p] += (1 / Ls[index_p])
         L1, L2 = Ls
 
-        inequal_is_true = 1 / (2 * Ls[index_p]) * np.linalg.norm(
-            sampled_gradient_x) ** 2 <= z1_ - z2_ + ADAPTIVE_DELTA
-        
-        if inequal_is_true:
-            n_ = L1 ** beta + L2 ** beta
-            alpha = (i + 2) / (2 * n_ ** 2)
 
-            if index_p == 0:
-                z1 = np.maximum(z1 - (1 / L1) * alpha * n_ * sampled_gradient_x, oracle_stacker.oracle.t_bar)
-                z1_ = z1
+        n_ = L1 ** beta + L2 ** beta
+        alpha = (i + 2) / (2 * n_ ** 2)
+        print("alpha ", alpha)
 
-            if index_p == 1:
-                z2 = z2 - (1 / L2) * alpha * n_ * sampled_gradient_x
-                z2_ = z2
-        else:
-            Ls[index_p] *= 2
+        if index_p == 0:
+            z1 = np.maximum(z1 - (1 / L1) * alpha * n_ * sampled_gradient_x, oracle_stacker.oracle.t_bar)
+            z1_ = z1
 
-
-
+        if index_p == 1:
+            z2 = z2 - (1 / L2) * alpha * n_ * sampled_gradient_x
+            z2_ = z2
         # z1, z2 = y1, y2
 
         x1_list.append(x1)
         x2_list.append(x2)
-        debug = abs(oracle_stacker.oracle.prime(flows_averaged, corrs_averaged) + res_y)
-        log.history.append(abs(oracle_stacker.oracle.prime(flows_averaged, corrs_averaged) + res_y))
+        if log.t_calls > 0 and log.la_mu_calls > 0:
+            debug = abs(oracle_stacker.oracle.prime(flows_averaged, corrs_averaged) + res_y)
+            log.history.append(abs(oracle_stacker.oracle.prime(flows_averaged, corrs_averaged) + res_y))
         print(f"{log.t_calls=}")
         print(f"{log.la_mu_calls=}")
         print(f"{oracle_stacker.oracle.prime(flows_averaged, corrs_averaged)=}")
+
+    end_norm = np.linalg.norm(np.hstack([oracle_stacker.optim_params.la, oracle_stacker.optim_params.mu]))
+
 
     return log.t_calls, log.la_mu_calls, log.history, log.la_mu_grad_norms, log.t_grad_norms, x1_list, x2_list, [L1, L2]
