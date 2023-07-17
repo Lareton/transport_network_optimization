@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from transport_problem import DualOracle, OptimParams
 from oracle_utils import AlgoResults
 
+
 @dataclass
 class Log:
     history: list = field(default_factory=list)
@@ -13,7 +14,6 @@ class Log:
     la_mu_calls = 0
     t_calls = 0
     t_grad_norms: list = field(default_factory=list)
-
 
 
 class ACRCDOracleStacker:
@@ -50,7 +50,6 @@ class ACRCDOracleStacker:
         t_grad = np.hstack([grad_t])
         dual_value = self.oracle.calc_F(self.optim_params, T)
         self.flows = flows_on_shortest.copy()
-
 
         if np.isnan(dual_value):
             dual_value = self.oracle.calc_F(self.optim_params, T)
@@ -136,18 +135,18 @@ def ACRCD_star(oracle_stacker: ACRCDOracleStacker, x1_0, x2_0, K, L1_init=1e-1, 
         index_p = np.random.choice([0, 1], p=[L1 ** beta / n_,
                                               L2 ** beta / n_])
 
-        print(results_t.count_oracle_calls, results_la_mu.count_oracle_calls)
         if index_p == 0:
             res_x, sampled_gradient_x, flows = oracle_stacker.t_step(x1)  # moved out of the inner loop
 
+            _, gradient_la_mu, _ = oracle_stacker.la_mu_step(x2)  # FOR TESTING ONLY!!!
+
             if i > 5:
                 results_t.count_oracle_calls += 1
-                results_t.history_dual_gap.append(abs(oracle_stacker.oracle.prime(flows_averaged, corrs_averaged) + res_x))
+                results_t.history_dual_gap.append(
+                    abs(oracle_stacker.oracle.prime(flows_averaged, corrs_averaged) + res_x))
                 results_t.history_count_calls.append(results_t.count_oracle_calls)
-                if len(results_la_mu.history_la_mu_grad_norm) > 0:
-                    results_t.history_la_mu_grad_norm.append(results_la_mu.history_la_mu_grad_norm[-1])
-                else:
-                    results_t.history_la_mu_grad_norm.append(1e-2)
+                results_t.history_la_mu_grad_norm.append(np.linalg.norm(gradient_la_mu))
+
 
         elif index_p == 1:
             res_x, sampled_gradient_x, d = oracle_stacker.la_mu_step(x2)  # moved out of the inner loop
@@ -155,9 +154,9 @@ def ACRCD_star(oracle_stacker: ACRCDOracleStacker, x1_0, x2_0, K, L1_init=1e-1, 
             if i > 5:
                 results_la_mu.count_oracle_calls += 1
                 results_la_mu.history_la_mu_grad_norm.append(np.linalg.norm(sampled_gradient_x))
-                results_la_mu.history_dual_gap.append(abs(oracle_stacker.oracle.prime(flows_averaged, corrs_averaged) + res_x))
+                results_la_mu.history_dual_gap.append(
+                    abs(oracle_stacker.oracle.prime(flows_averaged, corrs_averaged) + res_x))
                 results_la_mu.history_count_calls.append(results_la_mu.count_oracle_calls)
-
 
         Ls = [L1, L2]
 

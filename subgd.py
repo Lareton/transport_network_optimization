@@ -82,6 +82,7 @@ class OracleStacker:
 def ustm_mincost_mcf(
         oracle_stacker: OracleStacker,
         eps_abs: float,
+        crit_eps_abs: float,
         eps_cons_abs: float,
         max_iter: int = 10000,
         stop_by_crit: bool = True,
@@ -159,7 +160,7 @@ def ustm_mincost_mcf(
             # print()
 
             rvalue = (func_y + np.dot(grad_y, t - y) + 0.5 * L_value * np.sum((t - y) ** 2) +
-                      #                      0.5 * alpha / A * eps_abs )  # because, in theory, noise accumulates
+#                                            0.5 * alpha / A * eps_abs )  # because, in theory, noise accumulates
                       0.5 * eps_abs)
 
             if lvalue <= rvalue:
@@ -195,7 +196,7 @@ def ustm_mincost_mcf(
         results.history_dual_gap.append(oracle_stacker.oracle.prime(flows_averaged, d_avaraged) + func_t)
         results.history_A.append(A)
 
-        if stop_by_crit and abs(results.history_dual_gap[-1]) <= eps_abs and results.history_la_mu_grad_norm[-1] <= eps_cons_abs:
+        if stop_by_crit and abs(results.history_dual_gap[-1]) <= crit_eps_abs and results.history_la_mu_grad_norm[-1] <= eps_cons_abs:
             print("EARLY STOPPING")
             break
 
