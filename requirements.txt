@@ -1,0 +1,28 @@
+# This file may be used to create an environment using:
+# $ conda create --name <env> --file <this file>
+# platform: linux-64
+graph-tool=2.57=py311h35b2f40_0
+graph-tool-base=2.57=py311ha6c7e1a_0
+graphite2=1.3.13=h58526e2_1001
+multiprocess=0.70.14=py311hd4cff14_3
+networkx=2.7.1=pyhd3eb1b0_0
+numba=0.57.1=np1.22py3.11hd267560_g04e81073b_0
+numpy=1.24.0=pypi_0
+pandas=2.0.3=pypi_0
+pandoc=2.12=h06a4308_3
+pandocfilters=1.5.0=pyhd3eb1b0_0
+pango=1.50.14=heaa33ce_1
+pillow=10.0.0=py311h0b84326_0
+pip=23.1.2=pyhd8ed1ab_0
+pytz=2023.3=pypi_0
+requests=2.31.0=pyhd8ed1ab_0
+scanf=1.5.2=pypi_0
+scipy=1.11.1=py311h64a7726_0
+setuptools=68.0.0=pyhd8ed1ab_0
+tqdm=4.65.0=pypi_0
+tzdata=2023.3=pypi_0
+urllib3=2.0.3=pyhd8ed1ab_1
+wayland=1.22.0=h8c25dac_1
+webencodings=0.5.1=py311h06a4308_1
+websocket-client=0.58.0=py311h06a4308_4
+wheel=0.40.0=pyhd8ed1ab_0
