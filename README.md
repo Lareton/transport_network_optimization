@@ -9,6 +9,8 @@ Ran- domized Coordinate Descent – ACRCD) - оптимизация происх
 вероятность выбора блока зависит от (не)гладкости функции по
 данному блоку.
 
+P. S. Для метода ACRCD* убрана адаптивность  по (не)гладкости 
+из-за проблем со сходимостью - запуски производились с подобранными константами гладкости.
 
 Репозиторий содержит результаты вычислительных экспериментов по
   качеству сходимости перечисленных методов на реальных графах. Для тестирования использовались графы из [репозитория](https://github.com/bstabler/TransportationNetworks).
@@ -28,15 +30,22 @@ Ran- domized Coordinate Descent – ACRCD) - оптимизация происх
 
   Метрики фиксировались относительно текущего кол-ва оракульных вызовов.
 
-Использование перечисленных алгоритмов на реальном графе и результаты экспериментов находятся в файлах:
-- [test_USTM.ipynb](test_USTM.ipynb)
-- [test_USTM_Sinkhorn.ipynb](test_USTM.ipynb)
-- [test_ACRCD_transport](test_ACRCD_transport(1).ipynb)
+### Эксперименты
+<b>Запуск и сравнение всех алгоритмов:
+[comparison of all algorithms](testing_all_algos.ipynb)
+</b>
 
 Реализации самих методов и интерфейсов для работы с транспортной задачей:
 - [USTM](subgd.py)
-- [USTM_Sinkhorn](TODO)
+- [USTM_Sinkhorn](sinkhorn_appendix.py)
 - [ACRCD*](acrcd.py)
+
+Ноутбуки с использование каждого из перечисленных алгоритмов в отдельности (неактуально)
+- [USTM](test_USTM.ipynb)
+- [USTM_Sinkhorn](test_USTM.ipynb)
+- [ACRCD*](test_acrcd.ipynb)
+
+
 
 Используемые графы:
 - SiouxFalls
