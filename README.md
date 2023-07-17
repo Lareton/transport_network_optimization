@@ -37,3 +37,18 @@ Ran- domized Coordinate Descent – ACRCD) - оптимизация происх
 - [USTM](subgd.py)
 - [USTM_Sinkhorn](TODO)
 - [ACRCD*](acrcd.py)
+
+Используемые графы:
+- SiouxFalls
+- Anaheim
+- Chicago
+- Berlin
+
+### Визуализация сравнения алгоритмов на графе Anaheim:
+![alogs](readme_images/comparison_plot.png)
+
+
+
+eps_abs=10<sup>-2</sup> 
+crit_eps_abs=10<sup>-2</sup>
+условием остановки было достижение данных констант или максимального кол-во итераций  
