@@ -31,6 +31,16 @@ P. S. Для метода ACRCD* убрана адаптивность  по (н
   Метрики фиксировались относительно текущего кол-ва оракульных вызовов.
 
 ### Эксперименты
+<b> Создание среды</b>
+
+```
+>>> conda create --name transport_env -c conda-forge graph-tool
+>>> conda activate transport_env
+>>> pip install -r requirements.txt
+>>> conda install ipykernel
+>>> python -m ipykernel install --user --name test_prod_name --display-name "test_prod_name"
+```
+
 <b>Запуск и сравнение всех алгоритмов:
 [comparison of all algorithms](testing_all_algos.ipynb)
 </b>
