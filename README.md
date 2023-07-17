@@ -38,7 +38,7 @@ P. S. Для метода ACRCD* убрана адаптивность  по (н
 >>> conda activate transport_env
 >>> pip install -r requirements.txt
 >>> conda install ipykernel
->>> python -m ipykernel install --user --name test_prod_name --display-name "test_prod_name"
+>>> python -m ipykernel install --user --name transport_env --display-name "transport_env"
 ```
 
 <b>Запуск и сравнение всех алгоритмов:
