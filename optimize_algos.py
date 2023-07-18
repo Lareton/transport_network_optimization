@@ -203,7 +203,7 @@ def just_USTM(
 
             grad_sum = grad_sum_prev + alpha * grad_y
 
-            u = np.maximum(0, y_start - grad_sum)
+            u =  y_start - grad_sum
 
             t = (alpha * u + A_prev * t_prev) / A
             function_value_t, *_= test_problem.calc_by_one_block(t)
