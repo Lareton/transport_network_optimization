@@ -7,6 +7,7 @@ from matplotlib import pyplot as plt
 from dataclasses import dataclass
 from tqdm import tqdm
 
+from test_sampler import TestProblem
 
 # def nesterov(x_0, grad, L, mu, K):
 #     x_cur = x_0
@@ -163,30 +164,33 @@ def ACRCD_star(test_problem, x1_0, x2_0, K, L1_init=5000, L2_init=5000):
     return history, grad_x1_norms, grad_x2_norms, x1_list, x2_list, [L1, L2]
 
 
-def just_ustm(
-        model,
+def just_USTM(
+        test_problem: TestProblem,
+        x_0,
         eps_abs: float,
-        eps_cons_abs: float,
         max_iter: int = 10000,
-        stop_by_crit: bool = True,
 ) -> tuple:
-    dgap_log = []
+    value_log = []
     cons_log = []
     A_log = []
+    grad_history = []
 
     A_prev = 0.0
-    t_start = np.zeros(model.graph.num_edges())  # dual costs w
+    t_start = x_0.copy()  # dual costs w
     y_start = u_prev = t_prev = np.copy(t_start)
     assert y_start is u_prev  # acceptable at first initialization
     grad_sum_prev = np.zeros(len(t_start))
 
-    dual, grad_y, flows_averaged_ije = func_grad_flows(y_start)
-    L_value = np.linalg.norm(grad_y) / 10
+    function_value, grad_y = test_problem.calc_by_one_block(y_start)
+    value_log.append(function_value)
+    start_L = np.linalg.norm(grad_y) / 10
+    L_value = start_L
 
+    t_history = []
     A = u = t = y = None
     inner_iters_num = 0
 
-    for k in range(max_iter):
+    for k in tqdm(range(max_iter)):
         while True:
             inner_iters_num += 1
 
@@ -194,16 +198,18 @@ def just_ustm(
             A = A_prev + alpha
 
             y = (alpha * u_prev + A_prev * t_prev) / A
-            func_y, grad_y, flows_y = func_grad_flows(y)
+            function_value_y, grad_y = test_problem.calc_by_one_block(y)
+            grad_history.append(np.linalg.norm(grad_y))
+
             grad_sum = grad_sum_prev + alpha * grad_y
 
             u = np.maximum(0, y_start - grad_sum)
 
             t = (alpha * u + A_prev * t_prev) / A
-            func_t, _, _ = func_grad_flows(t)
+            function_value_t, *_= test_problem.calc_by_one_block(t)
 
-            lvalue = func_t
-            rvalue = (func_y + np.dot(grad_y, t - y) + 0.5 * L_value * np.sum((t - y) ** 2) +
+            lvalue = function_value_t
+            rvalue = (function_value_y + np.dot(grad_y, t - y) + 0.5 * L_value * np.sum((t - y) ** 2) +
                       #                      0.5 * alpha / A * eps_abs )  # because, in theory, noise accumulates
                       0.5 * eps_abs)
 
@@ -219,20 +225,17 @@ def just_ustm(
 
         t_prev = t
         u_prev = u
+
+        t_history.append(t)
+
         grad_sum_prev = grad_sum
 
         gamma = alpha / A
-        flows_averaged_ije = flows_averaged_ije * (1 - gamma) + flows_y * gamma
-        flows_averaged_e = flows_averaged_ije.sum(axis=(0, 1))
 
-        dgap_log.append(model.primal(flows_averaged_e) + func_t)
-        cons_log.append(model.constraints_violation_l1(flows_averaged_e))
+        value_log.append(function_value_t)
         A_log.append(A)
 
-        if stop_by_crit and dgap_log[-1] <= eps_abs and cons_log[-1] <= eps_cons_abs:
-            break
-
-    return t, flows_averaged_ije, dgap_log, cons_log, A_log
+    return t_history, value_log, grad_history, A_log, (start_L, L_value)
 
 def test_algo_by_problem(test_problem, algo_func, k=5000, L1_init=100, L2_init=100):
     x0 = np.zeros(test_problem.x_dim)
@@ -256,6 +259,7 @@ def test_algo_by_problem(test_problem, algo_func, k=5000, L1_init=100, L2_init=1
     plt.legend()
     plt.show()
 
-    plt.plot(history-test_problem.f_star, label="func_value")
+    plt.plot(history-test_problem.f_star, label="func_value - f*")
     plt.yscale("log")
+    plt.legend()
     plt.show()
