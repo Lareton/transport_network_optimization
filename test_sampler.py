@@ -30,26 +30,29 @@ def get_matrix(m, d, lams):
 class TestProblem:
     CONST = 0.5
 
-    def __init__(self, gamma=0.01, m=100, x_dim=100, y_dim=100,
-                 svxpy_solver="SCS", svxpy_verbose=True):
+    def __init__(self, gamma=0.01, La=200, m=100, x_dim=100, y_dim=100,
+                 svxpy_solver="SCS", svxpy_verbose=True, A_cond = 1e-3):
         self.m = m
         self.x_dim = x_dim
         self.y_dim = y_dim
 
-        self.La = 200
-        self.Lb = 1000
+        self.La = La
         self.gamma = gamma
 
         # генерируем матрицы для задачи
-        self.a_matrix_ = get_matrix(self.x_dim + self.y_dim, self.x_dim + self.y_dim,
-                                    np.linspace(1e-2, self.La, self.x_dim + self.y_dim)) # b @ torch.transpose(b, 0, 1)
-        self.a_matrix = torch.FloatTensor(self.a_matrix_ @ self.a_matrix_.T)
+        self.a_matrix_np = get_matrix(self.x_dim + self.y_dim, self.x_dim + self.y_dim,
+                                    np.linspace(self.La * A_cond, self.La, self.x_dim + self.y_dim)) # b @ torch.transpose(b, 0, 1)
+        self.a_matrix_np = self.a_matrix_np @ self.a_matrix_np.T
+        self.a_matrix = torch.FloatTensor(self.a_matrix_np)
 
         self.b_vector_np = np.random.random(self.m)
         self.b_vector = torch.FloatTensor(self.b_vector_np)
 
-        self.c_matrix_np = get_matrix(self.m, self.x_dim, np.linspace(1, self.La, min(self.m, self.x_dim)))
+        self.c_matrix_np = get_matrix(self.m, self.x_dim, np.linspace(1, 1, min(self.m, self.x_dim)))
         self.c_matrix = torch.FloatTensor(self.c_matrix_np)
+
+        self.Lx = self.La + 1/gamma
+        self.Ly = self.La
 
         # находим решение получившейся задачи
         f_star, x1_star, x2_star = self.find_solution_by_cvxpy(solver=svxpy_solver, verbose=svxpy_verbose)
