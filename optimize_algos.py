@@ -31,6 +31,10 @@ from test_sampler import TestProblem
 # y (paper) = q(code_)
 def ACRCD(test_problem, x_0, y_0, K, L1_init=1000, L2_init=1000):
     history = []
+    history_first_oracle = []
+    history_second_oracle = []
+
+    history = []
     grad_x_norms = []
     grad_y_norms = []
 
@@ -66,6 +70,12 @@ def ACRCD(test_problem, x_0, y_0, K, L1_init=1000, L2_init=1000):
         index_p = np.random.choice([0, 1], p=[L1 ** beta / n_,
                                               L2 ** beta / n_])
 
+        common_grad_norm = np.linalg.norm(np.hstack([grad_x, grad_y]))
+        if index_p:
+            history_second_oracle.append(common_grad_norm)
+        else:
+            history_first_oracle.append(common_grad_norm)
+
         if index_p == 0:
             q1_upd = x1_upd - (1 / L1) * grad_x
             q2_upd = q2_cur
@@ -89,7 +99,7 @@ def ACRCD(test_problem, x_0, y_0, K, L1_init=1000, L2_init=1000):
         q1_cur = q1_upd
         q2_cur = q2_upd
 
-    return history, grad_x_norms, grad_y_norms, x_list, y_list, [L1, L2]
+    return (history, history_first_oracle, history_second_oracle), grad_x_norms, grad_y_norms, x_list, y_list, [L1, L2]
 
 
 # y (paper) = q(code_)
@@ -259,7 +269,8 @@ def test_algo_by_problem(test_problem, algo_func, k=5000, L1_init=100, L2_init=1
     plt.legend()
     plt.show()
 
+    # plt.plot(history, label="func_value - f*")
     plt.plot(history-test_problem.f_star, label="func_value - f*")
-    plt.yscale("log")
+    # plt.yscale("log")
     plt.legend()
     plt.show()
